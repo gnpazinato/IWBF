@@ -91,12 +91,16 @@ assessment_template_reader = load_pdf_template("Assessment-Form-Stages-2AB.pdf")
 # --- App Title and Instruction ---
 st.title("📄 IWBF Player Assessment Forms Generator")
 
-# Instruction with download link for the template
-st.markdown("""
-**Click [here](https://drive.google.com/uc?export=download&id=1Spn7z3ZRPuyWfOzaQp-o5CIm7W3a6EZ7ofnZSOKmGYw) to download the template file `Players.xlsx`.**<br>  
-After filling it out, upload the file below.
-""", unsafe_allow_html=True)
+# Download button for template
+with open("Players.xlsx", "rb") as f:
+    st.download_button(
+        label="📥 Click here to download the template file Players.xlsx",
+        data=f,
+        file_name="Players.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
+st.markdown("After filling it out, upload the file below.")
 st.markdown("---")
 
 # --- File Uploader Component ---
