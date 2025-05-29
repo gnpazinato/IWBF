@@ -4,7 +4,6 @@ import io
 import os
 import zipfile
 import pikepdf
-from pikepdf import Name, String, Boolean
 
 # --- Streamlit Page Configuration ---
 st.set_page_config(page_title="IWBF Player Assessment Forms Generator", layout="centered")
@@ -48,11 +47,11 @@ def fill_and_get_pdf_bytes(pdf_template_obj, field_values):
             field = field_ref.get_object()
             field_name = field.get("/T", None)
             if field_name and field_name in field_values:
-                field[Name("/V")] = String(str(field_values[field_name]))
-                field[Name("/Ff")] = 1
-                field[Name("/AP")] = None
+                field[pikepdf.Name("/V")] = pikepdf.String(str(field_values[field_name]))
+                field[pikepdf.Name("/Ff")] = 1
+                field[pikepdf.Name("/AP")] = None
 
-        acroform[Name("/NeedAppearances")] = Boolean(True)
+        acroform[pikepdf.Name("/NeedAppearances")] = pikepdf.Boolean(True)
 
         output_buffer = io.BytesIO()
         pdf.save(output_buffer)
