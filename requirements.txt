@@ -1,5 +1,4 @@
 streamlit
 pandas
-pypdf
+PyPDF2
 openpyxl
-requests
