@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
-# Removido: from PyPDF2 import PdfReader, PdfWriter
-# Removido: from PyPDF2.generic import NameObject, BooleanObject, DictionaryObject
+# Removidas as importações de PyPDF2.generic, pois pikepdf tem seus próprios tipos
 import io
 import os
 import zipfile
 import pikepdf # Importa pikepdf
 
-# --- Configuração da Página do Streamlit (DEVE SER O PRIMEIRO COMANDO STREAMLIT) ---
+# --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(page_title="IWBF Player Assessment Forms Generator", layout="centered")
 
 # --- Helper Functions ---
@@ -29,16 +28,18 @@ def load_pdf_template(template_name_with_extension):
     Returns the pikepdf.Pdf object.
     """
     try:
+        # Path is relative to the app.py file in the repository
         path = os.path.join(os.path.dirname(__file__), template_name_with_extension)
         if not os.path.exists(path):
             st.error(f"Error: PDF template '{template_name_with_extension}' not found at: {path}")
-            st.stop()
+            st.stop() # Stops app execution if template is not found
         
+        # Open the PDF with pikepdf
         pdf = pikepdf.Pdf.open(path)
         return pdf
     except Exception as e:
         st.error(f"Error loading PDF template '{template_name_with_extension}': {e}")
-        st.stop()
+        st.stop() # Stops app execution in case of a loading error
 
 # Função fill_and_get_pdf_bytes REESCRITA para usar pikepdf
 def fill_and_get_pdf_bytes(pdf_template_obj, field_values): # Recebe pikepdf.Pdf object
@@ -56,14 +57,9 @@ def fill_and_get_pdf_bytes(pdf_template_obj, field_values): # Recebe pikepdf.Pdf
         pdf = pikepdf.Pdf.open(temp_buffer)
 
         # Acessa os campos do formulário
-        if '/AcroForm' not in pdf.root:
-            # Se não houver AcroForm, pikepdf não conseguirá preencher campos.
-            # Você pode optar por criá-lo aqui ou levantar um erro.
-            # st.warning("PDF does not contain an AcroForm dictionary for form fields.")
-            # Continuar sem preencher campos se não houver formulário.
-            # Para o seu caso, presumimos que o formulário SEMPRE existe.
-            raise Exception("PDF does not contain an AcroForm dictionary for form fields.")
-        
+        # pikepdf manipula o AcroForm através da propriedade 'form'
+        # Não é necessário verificar '/AcroForm' in pdf.root explicitamente aqui
+        # pois get_form() lida com isso.
         form_fields = pdf.get_form()
 
         # Preenche os campos
@@ -73,30 +69,29 @@ def fill_and_get_pdf_bytes(pdf_template_obj, field_values): # Recebe pikepdf.Pdf
                 field.V = pikepdf.String(str(value)) # Define o valor. pikepdf precisa de um objeto String
                 
                 # Força a aparência a ser gerada pelo visualizador.
-                # A propriedade 'AP' representa o stream de aparência do campo.
-                # Definir como None força o visualizador a redesenhar.
-                # Ou usar a flag '/SetFf' (Field Flags) se necessário, mas AP=None é mais comum.
-                # field.AP = None
+                # AP (Appearance Stream) nulo força o redesenho.
+                field.AP = None
                 
-                # Em pikepdf, forçar a aparência é geralmente feito pelo AcroForm.NeedAppearances = True
-                # e a própria biblioteca lida com o resto para campos preenchidos.
+                # O 'Ff' (Field Flags) pode ser usado para setar flags como Print, NoExport, etc.
+                # Para forçar a aparência, setamos NeedAppearances no AcroForm,
+                # e pikepdf geralmente lida com a geração de aparência para campos preenchidos.
                 
-            # else: # Você pode adicionar um aviso se quiser saber sobre campos não encontrados
-                # st.warning(f"Warning: Field '{field_name}' not found in PDF form. Skipping.")
+            else: # Adicionado aviso para campos não encontrados, útil para depuração
+                st.warning(f"Warning: Field '{field_name}' not found in PDF form. Skipping.")
 
         # Garante que NeedAppearances seja definido no nível do AcroForm (dicionário de formulário raiz)
         # Isso é crucial para que os visualizadores de PDF renderizem os campos preenchidos corretamente.
+        # pikepdf acessa o AcroForm via pdf.root.AcroForm e o cria se não existir.
         if '/AcroForm' in pdf.root:
             pdf.root.AcroForm.NeedAppearances = pikepdf.Boolean(True)
         else:
-            # Se o AcroForm não for encontrado, pikepdf pode criá-lo e definir NeedAppearances.
-            # Isso é mais um fallback, o ideal é que o template já tenha um AcroForm.
+            # Se não houver AcroForm, cria um (isso é mais um fallback, o template deve ter um)
             pdf.root['/AcroForm'] = pikepdf.Dictionary()
             pdf.root.AcroForm.NeedAppearances = pikepdf.Boolean(True)
 
         # Salva o PDF preenchido em um buffer de memória
         output_buffer = io.BytesIO()
-        pdf.save(output_buffer) # Otimização padrão, salva em buffer
+        pdf.save(output_buffer) # pikepdf otimiza e salva para o buffer
         output_buffer.seek(0)
         return output_buffer.getvalue()
     except Exception as e:
@@ -134,7 +129,7 @@ if uploaded_file:
 
         total_pdfs_to_generate = 0
         generated_pdfs_count = 0
-        failed_items = [] # Lista para armazenar informações sobre PDFs que falharam
+        failed_items = [] # List to store information about failed PDFs
 
         try:
             # Load all sheets from the Excel file
@@ -155,7 +150,7 @@ if uploaded_file:
                     required_columns = ["number", "proposed-class", "name", "country", "date", "competition", "dob"]
                     if not all(col in df.columns for col in required_columns):
                         st.error(f"Error: Missing required columns in sheet **'{sheet_name}'**. Required: `{', '.join(required_columns)}`")
-                        st.stop()
+                        st.stop() # Stops execution if columns are missing
 
                     for index, row in df.iterrows():
                         player_name = str(row.get("name", "N/A"))
