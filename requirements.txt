@@ -1,4 +1,4 @@
 streamlit
 pandas
-pikepdf
+PyPDF2
 openpyxl
