@@ -1,20 +1,22 @@
-# 📄 IWBF PDF Generator
+# IWBF Player Assessment Forms Generator
 
 ---
 
 ## Overview
 
-This web application automates the process of filling two specific PDF forms (`Worksheet-Stages-2C-and-3.pdf` and `Assessment-Form-Stages-2AB.pdf`) using data from an Excel spreadsheet (`Players.xlsx`). It simplifies repetitive tasks by quickly generating multiple personalized PDFs.
+This web application is designed to automate the process of filling two specific IWBF player assessment forms: `Worksheet-Stages-2C-and-3.pdf` and `Assessment-Form-Stages-2AB.pdf`. It uses data from an Excel spreadsheet (`Players.xlsx`) to quickly generate multiple personalized PDF forms.
+
+This tool streamlines the manual form-filling process, making it efficient for professionals involved in player assessment.
 
 ---
 
 ## How to Use
 
 1.  **Access the Application:** Open the app in your browser:
-    [Link to your Streamlit Community Cloud app (add this after deployment)]
+    https://classificationiwbf.streamlit.app/
 
 2.  **Prepare Your Excel File:**
-    * Ensure your `Players.xlsx` file contains the following columns:
+    * Ensure your `Players.xlsx` file contains the following columns for each player:
         * `number`
         * `proposed-class`
         * `name`
@@ -24,41 +26,45 @@ This web application automates the process of filling two specific PDF forms (`W
         * `dob`
 
 3.  **Upload the File:**
-    * Click the "Select your Players.xlsx file" button within the app.
-    * Choose your Excel file from your computer.
+    * On the application interface, click the "Select your Players.xlsx file" button.
+    * Choose the Excel file from your computer.
 
-4.  **Generate PDFs:**
-    * Click the "Generate Worksheets" button.
-    * A progress bar and status messages will show the generation progress.
+4.  **Generate Forms:**
+    * After uploading the file, click the "Generate Player Forms" button.
+    * A progress bar and status messages will indicate the generation progress.
 
 5.  **Download Forms:**
-    * Once complete, click the "Download Generated PDFs (ZIP)" button.
-    * A `.zip` file containing all personalized PDFs, organized by sheet from your Excel, will be downloaded.
+    * Once the process is complete, a "Click to Download Generated Forms (ZIP)" button will appear.
+    * Click it to download a `.zip` file containing all the personalized PDF forms. The forms will be organized into folders named "Stages 2C and 3" and "Stages 2AB" within the ZIP archive.
 
 ---
 
 ## Technologies
 
+This project is built using:
+
 * **Python**
-* **Streamlit**
-* **pandas**
-* **pypdf**
+* **Streamlit:** For the interactive web interface.
+* **pandas:** For efficient Excel data reading and manipulation.
+* **PyPDF2:** For PDF form filling and manipulation.
 
 ---
 
 ## Project Structure
 
-* `app.py`: Main Streamlit application code.
-* `Worksheet-Stages-2C-and-3.pdf`: Worksheet PDF template.
-* `Assessment-Form-Stages-2AB.pdf`: Assessment Form PDF template.
-* `requirements.txt`: Python dependencies.
-* `README.md`: This file.
-* `.gitignore`: Specifies files/folders to be ignored by Git.
+The repository contains the following essential files:
+
+* `app.py`: The main Streamlit application code.
+* `Worksheet-Stages-2C-and-3.pdf`: The template for the Worksheet form.
+* `Assessment-Form-Stages-2AB.pdf`: The template for the Assessment form.
+* `requirements.txt`: Lists all Python dependencies required for the application.
+* `README.md`: This file, providing project overview and usage instructions.
+* `.gitignore`: Specifies files and directories to be ignored by Git.
 
 ---
 
-## License
+## 📝 License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+This project is licensed under the MIT License. Please refer to the `LICENSE` file in the repository for more details.
 
 ---
