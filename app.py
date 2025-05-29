@@ -95,7 +95,7 @@ st.title("📄 IWBF Player Assessment Forms Generator")
 st.markdown("""
 **Click [here](https://drive.google.com/uc?export=download&id=1Spn7z3ZRPuyWfOzaQp-o5CIm7W3a6EZ7ofnZSOKmGYw) to download the template file `Players.xlsx`.**<br>  
 After filling it out, upload the file below.
-"""), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
