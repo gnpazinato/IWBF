@@ -47,7 +47,8 @@ def fill_and_get_pdf_bytes(pdf_template_obj, field_values):
             raise Exception("No fields found in the AcroForm.")
 
         for field_ref in fields:
-            field = field_ref.get_object()
+            # Verifica se é referência indireta
+            field = field_ref.get_object() if hasattr(field_ref, "get_object") else field_ref
             field_name = field.get("/T", None)
             if field_name and field_name in field_values:
                 field[pikepdf.Name("/V")] = pikepdf.String(str(field_values[field_name]))
