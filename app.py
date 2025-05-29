@@ -8,7 +8,6 @@ import zipfile
 import requests # Adicionado para fazer requisições HTTP
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
-# Removed 'icon' argument as it caused TypeErrors in certain Streamlit/Python versions.
 st.set_page_config(page_title="Automated PDF Forms Generator", layout="centered")
 
 # --- Helper Functions ---
@@ -24,30 +23,37 @@ def format_date(date):
         return str(date)
 
 @st.cache_resource
-def load_pdf_template(file_id, template_name):
+def load_pdf_template_from_url(url, template_display_name):
     """
-    Loads a PDF template from a Google Drive file ID using pypdf.PdfReader.
+    Loads a PDF template from a direct download URL.
     Uses st.cache_resource to load the PDF only once, optimizing app performance.
     """
-    # Google Drive direct download URL format
-    # This might require manual steps to ensure the file is publicly shared and downloadable
-    # For large files or high traffic, Google Drive might require authentication or rate limit
-    google_drive_url = f"https://drive.google.com/uc?export=download&id={file_id}"
-
     try:
-        st.info(f"Downloading template '{template_name}.pdf' from Google Drive...")
-        response = requests.get(google_drive_url, stream=True)
+        st.info(f"Downloading template '{template_display_name}' from URL...")
+        response = requests.get(url, stream=True)
         response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
+
+        # It's crucial to check if the content-type is indeed PDF
+        content_type = response.headers.get('Content-Type', '')
+        if 'application/pdf' not in content_type and 'octet-stream' not in content_type:
+            # If it's HTML (from a redirect page), raise a specific error
+            if 'text/html' in content_type:
+                raise ValueError(f"Downloaded content is HTML, not PDF. URL might require manual confirmation or authentication. Content-Type: {content_type}")
+            else:
+                raise ValueError(f"Downloaded content is not a PDF. Content-Type: {content_type}")
 
         # Read content into a BytesIO object
         pdf_content = io.BytesIO(response.content)
 
         return PdfReader(pdf_content)
     except requests.exceptions.RequestException as req_e:
-        st.error(f"Error downloading PDF template '{template_name}.pdf' from Google Drive: {req_e}")
+        st.error(f"Error downloading PDF template '{template_display_name}' from URL: {req_e}")
+        st.stop() # Stops app execution
+    except ValueError as val_e:
+        st.error(f"Error validating downloaded PDF template '{template_display_name}': {val_e}")
         st.stop() # Stops app execution
     except Exception as e:
-        st.error(f"Error loading PDF template '{template_name}.pdf': {e}")
+        st.error(f"Error loading PDF template '{template_display_name}': {e}")
         st.stop() # Stops app execution
 
 def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
@@ -59,7 +65,6 @@ def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
         pdf_writer = PdfWriter()
 
         # Explicitly ensure /AcroForm dictionary exists in PdfWriter
-        # This is a robust workaround for "No /AcroForm dictionary" errors.
         if "/AcroForm" not in pdf_writer._root_object:
             pdf_writer._root_object[NameObject("/AcroForm")] = DictionaryObject()
 
@@ -92,12 +97,17 @@ def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
         # Re-raise the exception for the calling function to handle
         raise Exception(f"Failed to fill PDF: {e}")
 
-# --- Load PDF Templates from Google Drive ---
-# File IDs extracted from your provided URLs:
-# Assessment-Form-Stages-2AB.pdf: 16AzJ7j8mSMXgK8BMhqlWE_EsRE5e0YVW
-# Worksheet-Stages-2C-and-3.pdf: 16ynvLbIotnqzdL8CHRJDimAXTwCxa40c
-worksheet_template_reader = load_pdf_template("16ynvLbIotnqzdL8CHRJDimAXTwCxa40c", "Worksheet-Stages-2C-and-3")
-assessment_template_reader = load_pdf_template("16AzJ7j8mSMXgK8BMhqlWE_EsRE5e0YVW", "Assessment-Form-Stages-2AB")
+# --- Google Drive File IDs and URLs ---
+ASSESSMENT_FORM_ID = '16AzJ7j8mSMXgK8BMhqlWE_EsRE5e0YVW'
+ASSESSMENT_FORM_URL = f'https://drive.google.com/uc?export=download&id={ASSESSMENT_FORM_ID}'
+
+WORKSHEET_FORM_ID = '16ynvLbIotnqzdL8CHRJDimAXTwCxa40c'
+WORKSHEET_FORM_URL = f'https://drive.google.com/uc?export=download&id={WORKSHEET_FORM_ID}'
+
+
+# --- Load PDF Templates from Google Drive URLs ---
+worksheet_template_reader = load_pdf_template_from_url(WORKSHEET_FORM_URL, "Worksheet-Stages-2C-and-3.pdf")
+assessment_template_reader = load_pdf_template_from_url(ASSESSMENT_FORM_URL, "Assessment-Form-Stages-2AB.pdf")
 
 # --- App Title and Description ---
 st.title("📄 Automated PDF Forms Generator")
@@ -138,7 +148,7 @@ if uploaded_file:
 
             # In-memory buffer for the output ZIP file
             zip_buffer = io.BytesIO()
-
+            
             # Use zipfile to create the ZIP archive in memory
             with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED, False) as zip_file:
                 for sheet_name, df in planilhas.items():
