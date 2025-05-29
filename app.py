@@ -236,4 +236,4 @@ if uploaded_file:
             st.exception(e) # Displays the full traceback for debugging
 
     st.markdown("---")
-    st.caption("Developed to simplify PDF form filling.")
+    st.caption("International Wheelchair Basketball Federation - IWBF.")
