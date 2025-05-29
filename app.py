@@ -85,7 +85,7 @@ worksheet_template_reader = load_pdf_template("Worksheet-Stages-2C-and-3")
 assessment_template_reader = load_pdf_template("Assessment-Form-Stages-2AB")
 
 # --- Configuração da Interface do Streamlit ---
-st.set_page_config(page_title="Gerador de Formulários PDF", layout="centered", icon=":page_with_curl:")
+st.set_page_config(page_title="Gerador de Formulários PDF", layout="centered")
 st.title("📄 Gerador de Formulários PDF Automatizado")
 st.markdown("Faça o upload do seu arquivo Excel (`Players.xlsx`) para gerar os formulários PDF.")
 st.markdown("---")
