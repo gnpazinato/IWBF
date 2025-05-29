@@ -55,7 +55,8 @@ def fill_and_get_pdf_bytes(pdf_template_obj, field_values):
                 if pikepdf.Name("/AP") in field:
                     del field[pikepdf.Name("/AP")]
 
-        acroform[pikepdf.Name("/NeedAppearances")] = pikepdf.objects.BooleanObject(True)
+        # Esta é a forma correta e funcional
+        acroform[pikepdf.Name("/NeedAppearances")] = True
 
         output_buffer = io.BytesIO()
         pdf.save(output_buffer)
