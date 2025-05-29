@@ -39,27 +39,26 @@ def load_pdf_template(template_name):
         st.stop() # Interrompe a execução do app em caso de erro de carregamento
 
 def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
-    """
-    Preenche os campos de um PDF a partir de um objeto PdfReader e retorna os bytes do PDF preenchido.
-    Garante que os campos de formulário permaneçam interativos.
-    """
     try:
         pdf_writer = PdfWriter()
+
+        # ##### LINHA ADICIONADA #####
+        # Garante que o dicionário AcroForm exista desde o início no PdfWriter
+        # Isso é uma tentativa de contornar o erro se o AcroForm não for copiado automaticamente
+        if "/AcroForm" not in pdf_writer._root_object:
+            pdf_writer._root_object[NameObject("/AcroForm")] = DictionaryObject()
+        # ##### FIM LINHA ADICIONADA #####
 
         # Adiciona todas as páginas do template ao escritor
         for page in pdf_reader_obj.pages:
             pdf_writer.add_page(page)
 
         # Preenche os campos de formulário nas páginas
-        # A função update_page_form_field_values aplica os valores aos campos existentes
-        # Se um campo não estiver em field_values, ele não será alterado,
-        # preservando sua interatividade (incluindo checkboxes vazios).
         for i, page in enumerate(pdf_writer.pages):
             pdf_writer.update_page_form_field_values(page, field_values)
 
         # Garante que o PDF exiba os valores preenchidos (NeedAppearances)
-        # Isso é crucial para que os campos de texto apareçam corretamente.
-        # Para checkboxes não preenchidos, isso ajuda a manter a estrutura do formulário.
+        # Esta parte do seu código já está boa
         if "/AcroForm" in pdf_reader_obj.trailer["/Root"]:
             acroform = pdf_reader_obj.trailer["/Root"]["/AcroForm"]
             acroform.update({NameObject("/NeedAppearances"): BooleanObject(True)})
@@ -74,10 +73,9 @@ def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
         # Salva o PDF preenchido em um buffer de memória
         buffer = io.BytesIO()
         pdf_writer.write(buffer)
-        buffer.seek(0) # Volta o ponteiro para o início do buffer
+        buffer.seek(0)
         return buffer.getvalue()
     except Exception as e:
-        # Levanta uma exceção para que a função chamadora possa capturá-la
         raise Exception(f"Falha ao preencher PDF: {e}")
 
 # --- Carregamento dos Templates PDF (feito uma vez na inicialização do app) ---
