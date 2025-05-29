@@ -1,12 +1,13 @@
 import streamlit as st
 import pandas as pd
-from PyPDF2.generic import NameObject, BooleanObject, DictionaryObject # Manter para Dictionaries
+# Removido: from PyPDF2 import PdfReader, PdfWriter
+# Removido: from PyPDF2.generic import NameObject, BooleanObject, DictionaryObject
 import io
 import os
 import zipfile
 import pikepdf # Importa pikepdf
 
-# --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
+# --- Configuração da Página do Streamlit (DEVE SER O PRIMEIRO COMANDO STREAMLIT) ---
 st.set_page_config(page_title="IWBF Player Assessment Forms Generator", layout="centered")
 
 # --- Helper Functions ---
@@ -28,70 +29,82 @@ def load_pdf_template(template_name_with_extension):
     Returns the pikepdf.Pdf object.
     """
     try:
-        # Path is relative to the app.py file in the repository
         path = os.path.join(os.path.dirname(__file__), template_name_with_extension)
         if not os.path.exists(path):
             st.error(f"Error: PDF template '{template_name_with_extension}' not found at: {path}")
-            st.stop() # Stops app execution if template is not found
+            st.stop()
         
-        # Open the PDF with pikepdf
         pdf = pikepdf.Pdf.open(path)
         return pdf
     except Exception as e:
         st.error(f"Error loading PDF template '{template_name_with_extension}': {e}")
-        st.stop() # Stops app execution in case of a loading error
+        st.stop()
 
-def fill_and_get_pdf_bytes(pdf_template_obj, field_values): # Agora recebe pikepdf.Pdf object
+# Função fill_and_get_pdf_bytes REESCRITA para usar pikepdf
+def fill_and_get_pdf_bytes(pdf_template_obj, field_values): # Recebe pikepdf.Pdf object
     """
     Fills PDF fields in a pikepdf.Pdf object and returns the filled PDF as bytes.
     Ensures form fields remain interactive.
     """
     try:
-        # Create a new PDF from the template object to avoid modifying the cached one
-        # This is important because st.cache_resource caches the *object*.
-        # Modifying it directly would affect subsequent runs.
-        # We save to a BytesIO and then open again to get a fresh, mutable copy.
+        # Cria uma nova cópia do PDF do template para evitar modificar o objeto em cache.
+        # Isso é crucial porque st.cache_resource armazena em cache o objeto Pdf.
+        # Precisamos de uma cópia mutável para cada preenchimento.
         temp_buffer = io.BytesIO()
         pdf_template_obj.save(temp_buffer)
         temp_buffer.seek(0)
         pdf = pikepdf.Pdf.open(temp_buffer)
 
-        # Access the form fields
+        # Acessa os campos do formulário
         if '/AcroForm' not in pdf.root:
+            # Se não houver AcroForm, pikepdf não conseguirá preencher campos.
+            # Você pode optar por criá-lo aqui ou levantar um erro.
+            # st.warning("PDF does not contain an AcroForm dictionary for form fields.")
+            # Continuar sem preencher campos se não houver formulário.
+            # Para o seu caso, presumimos que o formulário SEMPRE existe.
             raise Exception("PDF does not contain an AcroForm dictionary for form fields.")
         
         form_fields = pdf.get_form()
 
-        # Fill the fields
+        # Preenche os campos
         for field_name, value in field_values.items():
-            if field_name in form_fields.get_fields():
+            if field_name in form_fields.get_fields(): # Verifica se o campo existe
                 field = form_fields.get_fields()[field_name]
-                field.V = pikepdf.String(str(value)) # Set the value. pikepdf needs String object
-                field.AP = None # Clear appearance stream to force viewer to redraw
-                field.Ff |= pikepdf.Name('/SetFf') # Ensure appearance is generated if not already
-            else:
-                st.warning(f"Warning: Field '{field_name}' not found in PDF form. Skipping.")
+                field.V = pikepdf.String(str(value)) # Define o valor. pikepdf precisa de um objeto String
+                
+                # Força a aparência a ser gerada pelo visualizador.
+                # A propriedade 'AP' representa o stream de aparência do campo.
+                # Definir como None força o visualizador a redesenhar.
+                # Ou usar a flag '/SetFf' (Field Flags) se necessário, mas AP=None é mais comum.
+                # field.AP = None
+                
+                # Em pikepdf, forçar a aparência é geralmente feito pelo AcroForm.NeedAppearances = True
+                # e a própria biblioteca lida com o resto para campos preenchidos.
+                
+            # else: # Você pode adicionar um aviso se quiser saber sobre campos não encontrados
+                # st.warning(f"Warning: Field '{field_name}' not found in PDF form. Skipping.")
 
-        # Ensure NeedAppearances is set at the AcroForm level
-        # This is crucial for viewers to render the form fields correctly.
+        # Garante que NeedAppearances seja definido no nível do AcroForm (dicionário de formulário raiz)
+        # Isso é crucial para que os visualizadores de PDF renderizem os campos preenchidos corretamente.
         if '/AcroForm' in pdf.root:
             pdf.root.AcroForm.NeedAppearances = pikepdf.Boolean(True)
         else:
-            # If no AcroForm was found, create one and set NeedAppearances
+            # Se o AcroForm não for encontrado, pikepdf pode criá-lo e definir NeedAppearances.
+            # Isso é mais um fallback, o ideal é que o template já tenha um AcroForm.
             pdf.root['/AcroForm'] = pikepdf.Dictionary()
             pdf.root.AcroForm.NeedAppearances = pikepdf.Boolean(True)
 
-        # Save the filled PDF to a memory buffer
+        # Salva o PDF preenchido em um buffer de memória
         output_buffer = io.BytesIO()
-        pdf.save(output_buffer)
+        pdf.save(output_buffer) # Otimização padrão, salva em buffer
         output_buffer.seek(0)
         return output_buffer.getvalue()
     except Exception as e:
-        # Re-raise the exception for the calling function to handle
+        # Relança a exceção para que a função chamadora possa tratá-la
         raise Exception(f"Failed to fill PDF: {e}")
 
-# --- Load PDF Templates (after st.set_page_config) ---
-# These will be pikepdf.Pdf objects, cached.
+# --- Load PDF Templates (após st.set_page_config) ---
+# Estes serão objetos pikepdf.Pdf, armazenados em cache.
 worksheet_template_obj = load_pdf_template("Worksheet-Stages-2C-and-3.pdf")
 assessment_template_obj = load_pdf_template("Assessment-Form-Stages-2AB.pdf")
 
@@ -121,7 +134,7 @@ if uploaded_file:
 
         total_pdfs_to_generate = 0
         generated_pdfs_count = 0
-        failed_items = [] # List to store information about failed PDFs
+        failed_items = [] # Lista para armazenar informações sobre PDFs que falharam
 
         try:
             # Load all sheets from the Excel file
@@ -142,7 +155,7 @@ if uploaded_file:
                     required_columns = ["number", "proposed-class", "name", "country", "date", "competition", "dob"]
                     if not all(col in df.columns for col in required_columns):
                         st.error(f"Error: Missing required columns in sheet **'{sheet_name}'**. Required: `{', '.join(required_columns)}`")
-                        st.stop() # Stops execution if columns are missing
+                        st.stop()
 
                     for index, row in df.iterrows():
                         player_name = str(row.get("name", "N/A"))
