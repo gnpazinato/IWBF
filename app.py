@@ -29,13 +29,16 @@ def load_pdf_template(template_name_with_extension):
         st.stop()
 
 def fill_and_get_pdf_bytes(pdf_template_obj, field_values):
+    import io
+    import pikepdf
+
     try:
         temp_buffer = io.BytesIO()
         pdf_template_obj.save(temp_buffer)
         temp_buffer.seek(0)
         pdf = pikepdf.Pdf.open(temp_buffer)
 
-        acroform = pdf.root.get("/AcroForm", None)
+        acroform = pdf.Root.get("/AcroForm", None)
         if not acroform:
             raise Exception("PDF does not contain an AcroForm.")
 
