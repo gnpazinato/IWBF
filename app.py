@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
-from PyPDF2 import PdfReader, PdfWriter
-from PyPDF2.generic import NameObject, BooleanObject, DictionaryObject
+from PyPDF2.generic import NameObject, BooleanObject, DictionaryObject # Manter para Dictionaries
 import io
 import os
 import zipfile
+import pikepdf # Importa pikepdf
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(page_title="IWBF Player Assessment Forms Generator", layout="centered")
@@ -24,7 +24,8 @@ def format_date(date):
 @st.cache_resource # Using st.cache_resource to load the PDF only once
 def load_pdf_template(template_name_with_extension):
     """
-    Loads a PDF template using PyPDF2.PdfReader from the local repository.
+    Loads a PDF template using pikepdf.Pdf.open() from the local repository.
+    Returns the pikepdf.Pdf object.
     """
     try:
         # Path is relative to the app.py file in the repository
@@ -32,61 +33,67 @@ def load_pdf_template(template_name_with_extension):
         if not os.path.exists(path):
             st.error(f"Error: PDF template '{template_name_with_extension}' not found at: {path}")
             st.stop() # Stops app execution if template is not found
-        # Load the PDF directly from the local path
-        return PdfReader(path)
+        
+        # Open the PDF with pikepdf
+        pdf = pikepdf.Pdf.open(path)
+        return pdf
     except Exception as e:
         st.error(f"Error loading PDF template '{template_name_with_extension}': {e}")
         st.stop() # Stops app execution in case of a loading error
 
-def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
+def fill_and_get_pdf_bytes(pdf_template_obj, field_values): # Agora recebe pikepdf.Pdf object
     """
-    Fills PDF fields from a PdfReader object and returns the filled PDF as bytes.
+    Fills PDF fields in a pikepdf.Pdf object and returns the filled PDF as bytes.
     Ensures form fields remain interactive.
     """
     try:
-        pdf_writer = PdfWriter()
+        # Create a new PDF from the template object to avoid modifying the cached one
+        # This is important because st.cache_resource caches the *object*.
+        # Modifying it directly would affect subsequent runs.
+        # We save to a BytesIO and then open again to get a fresh, mutable copy.
+        temp_buffer = io.BytesIO()
+        pdf_template_obj.save(temp_buffer)
+        temp_buffer.seek(0)
+        pdf = pikepdf.Pdf.open(temp_buffer)
 
-        # Explicitly ensure /AcroForm dictionary exists in PdfWriter
-        if "/AcroForm" not in pdf_writer._root_object:
-            pdf_writer._root_object[NameObject("/AcroForm")] = DictionaryObject()
+        # Access the form fields
+        if '/AcroForm' not in pdf.root:
+            raise Exception("PDF does not contain an AcroForm dictionary for form fields.")
+        
+        form_fields = pdf.get_form()
 
-        # Add all pages from the template to the writer
-        for page in pdf_reader_obj.pages:
-            pdf_writer.add_page(page)
+        # Fill the fields
+        for field_name, value in field_values.items():
+            if field_name in form_fields.get_fields():
+                field = form_fields.get_fields()[field_name]
+                field.V = pikepdf.String(str(value)) # Set the value. pikepdf needs String object
+                field.AP = None # Clear appearance stream to force viewer to redraw
+                field.Ff |= pikepdf.Name('/SetFf') # Ensure appearance is generated if not already
+            else:
+                st.warning(f"Warning: Field '{field_name}' not found in PDF form. Skipping.")
 
-        # Fill form fields on the pages
-        # update_page_form_field_values applies values to existing fields.
-        # Fields not in field_values will not be altered, preserving their interactivity.
-        for i, page in enumerate(pdf_writer.pages):
-            pdf_writer.update_page_form_field_values(page, field_values)
-
-        # Ensure the PDF displays the filled values (NeedAppearances)
-        # This is crucial for text fields to appear correctly.
-        # For untouched checkboxes, it helps maintain the form structure.
-        if "/AcroForm" in pdf_reader_obj.trailer["/Root"]:
-            acroform = pdf_reader_obj.trailer["/Root"]["/AcroForm"]
-            acroform.update({NameObject("/NeedAppearances"): BooleanObject(True)})
-            pdf_writer._root_object.update({NameObject("/AcroForm"): acroform})
+        # Ensure NeedAppearances is set at the AcroForm level
+        # This is crucial for viewers to render the form fields correctly.
+        if '/AcroForm' in pdf.root:
+            pdf.root.AcroForm.NeedAppearances = pikepdf.Boolean(True)
         else:
-            pdf_writer._root_object.update({
-                NameObject("/AcroForm"): DictionaryObject({
-                    NameObject("/NeedAppearances"): BooleanObject(True)
-                })
-            })
+            # If no AcroForm was found, create one and set NeedAppearances
+            pdf.root['/AcroForm'] = pikepdf.Dictionary()
+            pdf.root.AcroForm.NeedAppearances = pikepdf.Boolean(True)
 
         # Save the filled PDF to a memory buffer
-        buffer = io.BytesIO()
-        pdf_writer.write(buffer)
-        buffer.seek(0) # Rewind the buffer to the beginning
-        return buffer.getvalue()
+        output_buffer = io.BytesIO()
+        pdf.save(output_buffer)
+        output_buffer.seek(0)
+        return output_buffer.getvalue()
     except Exception as e:
         # Re-raise the exception for the calling function to handle
         raise Exception(f"Failed to fill PDF: {e}")
 
 # --- Load PDF Templates (after st.set_page_config) ---
-# Ensure these files are in the root of your GitHub repository
-worksheet_template_reader = load_pdf_template("Worksheet-Stages-2C-and-3.pdf")
-assessment_template_reader = load_pdf_template("Assessment-Form-Stages-2AB.pdf")
+# These will be pikepdf.Pdf objects, cached.
+worksheet_template_obj = load_pdf_template("Worksheet-Stages-2C-and-3.pdf")
+assessment_template_obj = load_pdf_template("Assessment-Form-Stages-2AB.pdf")
 
 # --- App Title and Description ---
 st.title("📄 IWBF Player Assessment Forms Generator")
@@ -166,8 +173,8 @@ if uploaded_file:
                                 "xdate": format_date(row.get("date", "")),
                                 "xcompetition": str(row.get("competition", "")),
                             }
-                            # Pass the template reader object to the filling function
-                            worksheet_bytes = fill_and_get_pdf_bytes(worksheet_template_reader, field_values_worksheet)
+                            # Pass the pikepdf object to the filling function
+                            worksheet_bytes = fill_and_get_pdf_bytes(worksheet_template_obj, field_values_worksheet)
                             
                             # Renomeia a pasta de saída para "Stages 2C and 3"
                             zip_file.writestr(f"{sheet_name}/Stages 2C and 3/{player_name}-Worksheet-Stages-2C-and-3.pdf", worksheet_bytes)
@@ -181,8 +188,8 @@ if uploaded_file:
                                 "country": str(row.get("country", "")),
                                 "dob": format_date(row.get("dob", "")),
                             }
-                            # Pass the template reader object to the filling function
-                            assessment_bytes = fill_and_get_pdf_bytes(assessment_template_reader, field_values_assessment)
+                            # Pass the pikepdf object to the filling function
+                            assessment_bytes = fill_and_get_pdf_bytes(assessment_template_obj, field_values_assessment)
 
                             # Renomeia a pasta de saída para "Stages 2AB"
                             zip_file.writestr(f"{sheet_name}/Stages 2AB/{player_name}-Assessment-Form-Stages-2AB.pdf", assessment_bytes)
