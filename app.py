@@ -1,70 +1,68 @@
 import streamlit as st
 import pandas as pd
-from PyPDF2 import PdfReader, PdfWriter # Usando PyPDF2 conforme solicitado
+from PyPDF2 import PdfReader, PdfWriter
 from PyPDF2.generic import NameObject, BooleanObject, DictionaryObject
 import io
 import os
 import zipfile
-# requests não é mais necessário, pois os arquivos são carregados localmente
 
-# --- Configuração da Página do Streamlit (DEVE SER O PRIMEIRO COMANDO STREAMLIT) ---
-st.set_page_config(page_title="Gerador de Formulários PDF Automatizado", layout="centered")
+# --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
+st.set_page_config(page_title="Automated PDF Forms Generator", layout="centered")
 
-# --- Funções Auxiliares ---
+# --- Helper Functions ---
 
 def format_date(date):
     """
-    Formata uma data para o formato 'dd-mm-yyyy' ou retorna o valor como string.
-    Lida com diferentes tipos de entrada para datas.
+    Formats a date to 'dd-mm-yyyy' or returns the value as a string.
+    Handles different input types for dates.
     """
     try:
         return pd.to_datetime(date).strftime("%d-%m-%Y")
     except Exception:
         return str(date)
 
-@st.cache_resource # Usando st.cache_resource para carregar o PDF apenas uma vez
+@st.cache_resource # Using st.cache_resource to load the PDF only once
 def load_pdf_template(template_name_with_extension):
     """
-    Carrega um template PDF usando PyPDF2.PdfReader a partir do repositório local.
+    Loads a PDF template using PyPDF2.PdfReader from the local repository.
     """
     try:
-        # O caminho é relativo ao arquivo app.py no repositório
+        # Path is relative to the app.py file in the repository
         path = os.path.join(os.path.dirname(__file__), template_name_with_extension)
         if not os.path.exists(path):
-            st.error(f"Erro: O template PDF '{template_name_with_extension}' não foi encontrado em: {path}")
-            st.stop() # Interrompe a execução do app se o template não for encontrado
-        # Carrega o PDF diretamente do caminho local
+            st.error(f"Error: PDF template '{template_name_with_extension}' not found at: {path}")
+            st.stop() # Stops app execution if template is not found
+        # Load the PDF directly from the local path
         return PdfReader(path)
     except Exception as e:
-        st.error(f"Erro ao carregar o template PDF '{template_name_with_extension}': {e}")
-        st.stop() # Interrompe a execução do app em caso de erro de carregamento
+        st.error(f"Error loading PDF template '{template_name_with_extension}': {e}")
+        st.stop() # Stops app execution in case of a loading error
 
 def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
     """
-    Preenche os campos de um PDF a partir de um objeto PdfReader e retorna os bytes do PDF preenchido.
-    Garante que os campos de formulário permaneçam interativos.
+    Fills PDF fields from a PdfReader object and returns the filled PDF as bytes.
+    Ensures form fields remain interactive.
     """
     try:
         pdf_writer = PdfWriter()
 
-        # Garante explicitamente que o dicionário /AcroForm exista no PdfWriter
-        # Isso é uma solução robusta para erros de "No /AcroForm dictionary".
+        # Explicitly ensure /AcroForm dictionary exists in PdfWriter
         if "/AcroForm" not in pdf_writer._root_object:
             pdf_writer._root_object[NameObject("/AcroForm")] = DictionaryObject()
 
-        # Adiciona todas as páginas do template ao escritor
+        # Add all pages from the template to the writer
         for page in pdf_reader_obj.pages:
             pdf_writer.add_page(page)
 
-        # Preenche os campos do formulário nas páginas
-        # update_page_form_field_values aplica os valores aos campos existentes.
-        # Campos que não estão em field_values não serão alterados, preservando sua interatividade.
+        # Fill form fields on the pages
+        # update_page_form_field_values applies values to existing fields.
+        # Fields not in field_values will not be altered, preserving their interactivity.
         for i, page in enumerate(pdf_writer.pages):
             pdf_writer.update_page_form_field_values(page, field_values)
 
-        # Garante que o PDF exiba os valores preenchidos (NeedAppearances)
-        # Isso é crucial para que os campos de texto apareçam corretamente.
-        # Para checkboxes não preenchidos, ajuda a manter a estrutura do formulário.
+        # Ensure the PDF displays the filled values (NeedAppearances)
+        # This is crucial for text fields to appear correctly.
+        # For untouched checkboxes, it helps maintain the form structure.
         if "/AcroForm" in pdf_reader_obj.trailer["/Root"]:
             acroform = pdf_reader_obj.trailer["/Root"]["/AcroForm"]
             acroform.update({NameObject("/NeedAppearances"): BooleanObject(True)})
@@ -76,86 +74,84 @@ def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
                 })
             })
 
-        # Salva o PDF preenchido em um buffer de memória
+        # Save the filled PDF to a memory buffer
         buffer = io.BytesIO()
         pdf_writer.write(buffer)
-        buffer.seek(0) # Retorna o ponteiro para o início do buffer
+        buffer.seek(0) # Rewind the buffer to the beginning
         return buffer.getvalue()
     except Exception as e:
-        # Relança a exceção para que a função chamadora possa tratá-la
-        raise Exception(f"Falha ao preencher PDF: {e}")
+        # Re-raise the exception for the calling function to handle
+        raise Exception(f"Failed to fill PDF: {e}")
 
-# --- Carregamento dos Templates PDF (após st.set_page_config) ---
-# Garanta que esses arquivos estejam na raiz do seu repositório GitHub
+# --- Load PDF Templates (after st.set_page_config) ---
+# Ensure these files are in the root of your GitHub repository
 worksheet_template_reader = load_pdf_template("Worksheet-Stages-2C-and-3.pdf")
 assessment_template_reader = load_pdf_template("Assessment-Form-Stages-2AB.pdf")
 
-# --- Título e Descrição do Aplicativo ---
-st.title("📄 Gerador de Formulários PDF Automatizado")
-st.markdown("Faça o upload do seu arquivo Excel (`Players.xlsx`) para gerar formulários PDF personalizados.")
+# --- App Title and Description ---
+st.title("📄 Automated PDF Forms Generator")
+st.markdown("Upload your Excel file (`Players.xlsx`) to generate personalized PDF forms.")
 st.markdown("---")
 
-# --- Componente de Upload de Arquivo ---
+# --- File Uploader Component ---
 uploaded_file = st.file_uploader(
-    "Selecione seu arquivo Players.xlsx",
+    "Select your Players.xlsx file",
     type=["xlsx"],
-    help="O arquivo Excel deve conter as colunas: 'number', 'proposed-class', 'name', 'country', 'date', 'competition', 'dob'."
+    help="The Excel file must contain the following columns: 'number', 'proposed-class', 'name', 'country', 'date', 'competition', 'dob'."
 )
 
-# --- Lógica de Processamento ---
+# --- Processing Logic ---
 if uploaded_file:
-    st.success(f"Arquivo selecionado: **{uploaded_file.name}**")
+    st.success(f"File selected: **{uploaded_file.name}**")
 
-    # Botão para iniciar a geração
-    if st.button("Gerar Worksheets"):
-        st.info("Iniciando a geração dos PDFs. Isso pode levar alguns minutos...")
+    # Button to start generation
+    if st.button("Generate Worksheets"):
+        st.info("Starting PDF generation. This might take a few minutes...")
 
-        # Elementos de feedback para o usuário
+        # Feedback elements for the user
         progress_text = st.empty()
         progress_bar = st.progress(0)
 
         total_pdfs_to_generate = 0
         generated_pdfs_count = 0
-        failed_items = [] # Lista para armazenar informações sobre PDFs que falharam
+        failed_items = [] # List to store information about failed PDFs
 
         try:
-            # Carrega todas as abas do Excel
+            # Load all sheets from the Excel file
             excel_data = io.BytesIO(uploaded_file.getvalue())
             planilhas = pd.read_excel(excel_data, sheet_name=None)
 
-            # Calcula o total de PDFs a serem gerados para a barra de progresso
+            # Calculate total PDFs for the progress bar
             for sheet_name, df in planilhas.items():
-                total_pdfs_to_generate += len(df) * 2 # Cada linha gera 2 PDFs
+                total_pdfs_to_generate += len(df) * 2 # Each row generates 2 PDFs
 
-            # Buffer em memória para o arquivo ZIP de saída
+            # In-memory buffer for the output ZIP file
             zip_buffer = io.BytesIO()
             
-            # Usa zipfile para criar o arquivo ZIP em memória
+            # Use zipfile to create the ZIP archive in memory
             with zipfile.ZipFile(zip_buffer, 'a', zipfile.ZIP_DEFLATED, False) as zip_file:
                 for sheet_name, df in planilhas.items():
-                    # Validação de colunas obrigatórias
+                    # Validate required columns
                     required_columns = ["number", "proposed-class", "name", "country", "date", "competition", "dob"]
                     if not all(col in df.columns for col in required_columns):
-                        st.error(f"Erro: Colunas obrigatórias faltando na aba **'{sheet_name}'**. Necessário: `{', '.join(required_columns)}`")
-                        st.stop() # Interrompe a execução se as colunas estiverem faltando
+                        st.error(f"Error: Missing required columns in sheet **'{sheet_name}'**. Required: `{', '.join(required_columns)}`")
+                        st.stop() # Stops execution if columns are missing
 
                     for index, row in df.iterrows():
                         player_name = str(row.get("name", "N/A"))
                         player_number = str(row.get("number", "N/A"))
 
-                        # Validação básica de dados essenciais
+                        # Basic validation for essential data
                         if pd.isna(row["name"]) or pd.isna(row["number"]):
-                            error_msg = f"Pulando linha {index+2} (nome: '{player_name}') na aba '{sheet_name}' devido a 'name' ou 'number' ausente."
+                            error_msg = f"Skipping row {index+2} (name: '{player_name}') in sheet '{sheet_name}') due to missing 'name' or 'number'."
                             failed_items.append(error_msg)
                             generated_pdfs_count += 2
                             progress_bar.progress(generated_pdfs_count / total_pdfs_to_generate)
-                            progress_text.text(f"Progresso: {generated_pdfs_count}/{total_pdfs_to_generate} PDFs gerados. (Pulado: {player_name})")
+                            progress_text.text(f"Progress: {generated_pdfs_count}/{total_pdfs_to_generate} PDFs generated. (Skipped: {player_name})")
                             continue
 
                         try:
-                            # --- Preenchimento do Worksheet (Formulário 1) ---
-                            # Apenas campos de texto são incluídos aqui.
-                            # Checkboxes não são tocados para preservar a interatividade.
+                            # --- Fill Worksheet (Form 1) ---
                             field_values_worksheet = {
                                 "number": player_number,
                                 "proposed-class": str(row.get("proposed-class", "")),
@@ -170,60 +166,62 @@ if uploaded_file:
                                 "xdate": format_date(row.get("date", "")),
                                 "xcompetition": str(row.get("competition", "")),
                             }
+                            # Pass the template reader object to the filling function
                             worksheet_bytes = fill_and_get_pdf_bytes(worksheet_template_reader, field_values_worksheet)
                             
-                            zip_file.writestr(f"{sheet_name}/Worksheet/{player_name}-Worksheet-Stages-2C-and-3.pdf", worksheet_bytes)
+                            # Renomeia a pasta de saída para "Stages 2C and 3"
+                            zip_file.writestr(f"{sheet_name}/Stages 2C and 3/{player_name}-Worksheet-Stages-2C-and-3.pdf", worksheet_bytes)
                             generated_pdfs_count += 1
                             progress_bar.progress(generated_pdfs_count / total_pdfs_to_generate)
-                            progress_text.text(f"Progresso: {generated_pdfs_count}/{total_pdfs_to_generate} PDFs gerados. (Processando: {player_name})")
+                            progress_text.text(f"Progress: {generated_pdfs_count}/{total_pdfs_to_generate} PDFs generated. (Processing: {player_name})")
 
-                            # --- Preenchimento do Assessment Form (Formulário 2) ---
-                            # Apenas campos de texto são incluídos aqui.
-                            # Checkboxes não são tocados para preservar a interatividade.
+                            # --- Fill Assessment Form (Form 2) ---
                             field_values_assessment = {
                                 "name": player_name,
                                 "country": str(row.get("country", "")),
                                 "dob": format_date(row.get("dob", "")),
                             }
+                            # Pass the template reader object to the filling function
                             assessment_bytes = fill_and_get_pdf_bytes(assessment_template_reader, field_values_assessment)
 
-                            zip_file.writestr(f"{sheet_name}/Assessment/{player_name}-Assessment-Form-Stages-2AB.pdf", assessment_bytes)
+                            # Renomeia a pasta de saída para "Stages 2AB"
+                            zip_file.writestr(f"{sheet_name}/Stages 2AB/{player_name}-Assessment-Form-Stages-2AB.pdf", assessment_bytes)
                             generated_pdfs_count += 1
                             progress_bar.progress(generated_pdfs_count / total_pdfs_to_generate)
-                            progress_text.text(f"Progresso: {generated_pdfs_count}/{total_pdfs_to_generate} PDFs gerados. (Processando: {player_name})")
+                            progress_text.text(f"Progress: {generated_pdfs_count}/{total_pdfs_to_generate} PDFs generated. (Processing: {player_name})")
 
                         except Exception as e:
-                            error_msg = f"Erro ao processar '{player_name}' da aba '{sheet_name}': {e}"
+                            error_msg = f"Error processing '{player_name}' from sheet '{sheet_name}': {e}"
                             failed_items.append(error_msg)
                             generated_pdfs_count += 2
                             progress_bar.progress(generated_pdfs_count / total_pdfs_to_generate)
-                            progress_text.text(f"Erro com {player_name} (Aba: {sheet_name}). Continuando...")
+                            progress_text.text(f"Error with {player_name} (Sheet: {sheet_name}). Continuing...")
 
             progress_bar.progress(1.0)
-            progress_text.text("Geração de PDFs Concluída!")
+            progress_text.text("PDF Generation Complete!")
 
             zip_buffer.seek(0)
 
             if not failed_items:
-                st.success("Todos os PDFs foram gerados com sucesso!")
+                st.success("All PDFs generated successfully!")
             else:
-                st.warning(f"Geração concluída com **{len(failed_items)}** erros ou pulos. Verifique os logs para detalhes.")
+                st.warning(f"Generation completed with **{len(failed_items)}** errors or skips. Check the logs for details.")
                 for i, msg in enumerate(failed_items[:5]):
-                    st.error(f"Erro {i+1}: {msg}")
+                    st.error(f"Error {i+1}: {msg}")
                 if len(failed_items) > 5:
-                    st.info(f"...e mais {len(failed_items) - 5} erros. Verifique o console para detalhes completos.")
+                    st.info(f"...and {len(failed_items) - 5} more errors. Check the console for full details.")
 
             st.download_button(
-                label="Clique para Baixar PDFs Gerados (ZIP)",
+                label="Click to Download Generated PDFs (ZIP)",
                 data=zip_buffer,
                 file_name="Generated_PDFs.zip",
                 mime="application/zip",
-                help="Baixe um arquivo ZIP contendo todos os PDFs preenchidos."
+                help="Download a ZIP file containing all filled PDFs."
             )
 
         except Exception as e:
-            st.error(f"Ocorreu um erro inesperado durante a geração: {e}")
+            st.error(f"An unexpected error occurred during generation: {e}")
             st.exception(e)
 
     st.markdown("---")
-    st.caption("Desenvolvido para simplificar o preenchimento de formulários PDF.")
+    st.caption("Developed to simplify PDF form filling.")
