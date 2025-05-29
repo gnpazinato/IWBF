@@ -3,7 +3,7 @@ import pandas as pd
 import io
 import os
 import zipfile
-import pikepdf
+import pikepdf # Importa pikepdf
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(page_title="IWBF Player Assessment Forms Generator", layout="centered")
@@ -53,18 +53,8 @@ def fill_and_get_pdf_bytes(pdf_template_obj, field_values): # Recebe pikepdf.Pdf
         pdf = pikepdf.Pdf.open(temp_buffer)
 
         # Acessa os campos do formulário
-        # ALTERADO NOVAMENTE: Usa pdf.get_form_fields() para obter um dicionário de campos
-        # ou pdf.get_form().fields para acessar a coleção de campos diretamente,
-        # dependendo da versão do pikepdf.
-        # Vamos usar a que é mais comum e compatível com as versões recentes:
-        
-        # Primeiro, tentar acessar o objeto de formulário e depois seus campos.
-        # pdf.forms é a coleção de widgets de formulário (os objetos visíveis).
-        # pdf.get_form() retorna o dicionário AcroForm ou o cria.
-        
-        # A forma mais direta de acessar os campos nomeados em pikepdf é via pdf.get_form_fields()
-        # que retorna um dicionário nome -> objeto de campo.
-        form_fields_dict = pdf.get_form_fields() # <--- MUDANÇA PRINCIPAL AQUI
+        # CORRIGIDO: Usa pdf.forms.get_fields()
+        form_fields_dict = pdf.forms.get_fields() # <--- MUDANÇA CRÍTICA AQUI
 
         # Preenche os campos
         for field_name, value in field_values.items():
