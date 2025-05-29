@@ -8,7 +8,7 @@ import zipfile
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 # Removed 'icon' argument as it caused TypeErrors in certain Streamlit/Python versions.
-st.set_page_config(page_title="Automated PDF Forms Generator", layout="centered")
+st.set_page_config(page_title="IWBF PDF Forms Generator", layout="centered")
 
 # --- Helper Functions ---
 
