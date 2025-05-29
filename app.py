@@ -248,4 +248,4 @@ if uploaded_file:
             st.exception(e)
 
     st.markdown("---")
-    st.caption("Developed to simplify PDF form filling.")
+    st.caption("Developed to simplify PDF form fillingg.")
