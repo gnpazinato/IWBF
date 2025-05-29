@@ -5,7 +5,7 @@ from pypdf.generic import NameObject, BooleanObject, DictionaryObject
 import io
 import os
 import zipfile
-import requests # Adicionado para fazer requisições HTTP
+import requests # Mantenha requests, pois será usado para download
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(page_title="Automated PDF Forms Generator", layout="centered")
@@ -22,11 +22,12 @@ def format_date(date):
     except Exception:
         return str(date)
 
-@st.cache_resource
-def load_pdf_template_from_url(url, template_display_name):
+# Esta função NÃO será mais @st.cache_resource, pois o download ocorrerá sob demanda
+# e o caching será tratado por st.session_state para garantir que só baixe uma vez por sessão.
+def download_and_load_pdf_template(url, template_display_name):
     """
-    Loads a PDF template from a direct download URL.
-    Uses st.cache_resource to load the PDF only once, optimizing app performance.
+    Downloads a PDF template from a direct URL and loads it into PdfReader.
+    This function will be called only when needed (e.g., on button click).
     """
     try:
         st.info(f"Downloading template '{template_display_name}' from URL...")
@@ -36,25 +37,20 @@ def load_pdf_template_from_url(url, template_display_name):
         # It's crucial to check if the content-type is indeed PDF
         content_type = response.headers.get('Content-Type', '')
         if 'application/pdf' not in content_type and 'octet-stream' not in content_type:
-            # If it's HTML (from a redirect page), raise a specific error
             if 'text/html' in content_type:
                 raise ValueError(f"Downloaded content is HTML, not PDF. URL might require manual confirmation or authentication. Content-Type: {content_type}")
             else:
                 raise ValueError(f"Downloaded content is not a PDF. Content-Type: {content_type}")
 
-        # Read content into a BytesIO object
         pdf_content = io.BytesIO(response.content)
-
         return PdfReader(pdf_content)
     except requests.exceptions.RequestException as req_e:
-        st.error(f"Error downloading PDF template '{template_display_name}' from URL: {req_e}")
-        st.stop() # Stops app execution
+        raise Exception(f"Error downloading PDF template '{template_display_name}' from URL: {req_e}")
     except ValueError as val_e:
-        st.error(f"Error validating downloaded PDF template '{template_display_name}': {val_e}")
-        st.stop() # Stops app execution
+        raise Exception(f"Error validating downloaded PDF template '{template_display_name}': {val_e}")
     except Exception as e:
-        st.error(f"Error loading PDF template '{template_display_name}': {e}")
-        st.stop() # Stops app execution
+        raise Exception(f"Error loading PDF template '{template_display_name}': {e}")
+
 
 def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
     """
@@ -64,19 +60,15 @@ def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
     try:
         pdf_writer = PdfWriter()
 
-        # Explicitly ensure /AcroForm dictionary exists in PdfWriter
         if "/AcroForm" not in pdf_writer._root_object:
             pdf_writer._root_object[NameObject("/AcroForm")] = DictionaryObject()
 
-        # Add all pages from the template to the writer
         for page in pdf_reader_obj.pages:
             pdf_writer.add_page(page)
 
-        # Fill form fields on the pages
         for i, page in enumerate(pdf_writer.pages):
             pdf_writer.update_page_form_field_values(page, field_values)
 
-        # Ensure the PDF displays the filled values (NeedAppearances)
         if "/AcroForm" in pdf_reader_obj.trailer["/Root"]:
             acroform = pdf_reader_obj.trailer["/Root"]["/AcroForm"]
             acroform.update({NameObject("/NeedAppearances"): BooleanObject(True)})
@@ -88,13 +80,11 @@ def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
                 })
             })
 
-        # Save the filled PDF to a memory buffer
         buffer = io.BytesIO()
         pdf_writer.write(buffer)
-        buffer.seek(0) # Rewind the buffer to the beginning
+        buffer.seek(0)
         return buffer.getvalue()
     except Exception as e:
-        # Re-raise the exception for the calling function to handle
         raise Exception(f"Failed to fill PDF: {e}")
 
 # --- Google Drive File IDs and URLs ---
@@ -104,10 +94,6 @@ ASSESSMENT_FORM_URL = f'https://drive.google.com/uc?export=download&id={ASSESSME
 WORKSHEET_FORM_ID = '16ynvLbIotnqzdL8CHRJDimAXTwCxa40c'
 WORKSHEET_FORM_URL = f'https://drive.google.com/uc?export=download&id={WORKSHEET_FORM_ID}'
 
-
-# --- Load PDF Templates from Google Drive URLs ---
-worksheet_template_reader = load_pdf_template_from_url(WORKSHEET_FORM_URL, "Worksheet-Stages-2C-and-3.pdf")
-assessment_template_reader = load_pdf_template_from_url(ASSESSMENT_FORM_URL, "Assessment-Form-Stages-2AB.pdf")
 
 # --- App Title and Description ---
 st.title("📄 Automated PDF Forms Generator")
@@ -121,6 +107,14 @@ uploaded_file = st.file_uploader(
     help="The Excel file must contain the following columns: 'number', 'proposed-class', 'name', 'country', 'date', 'competition', 'dob'."
 )
 
+# --- Initialize session state for PDF templates if not already present ---
+# This ensures templates are downloaded only once per user session
+if 'worksheet_template_reader' not in st.session_state:
+    st.session_state.worksheet_template_reader = None
+if 'assessment_template_reader' not in st.session_state:
+    st.session_state.assessment_template_reader = None
+
+
 # --- Processing Logic ---
 if uploaded_file:
     st.success(f"File selected: **{uploaded_file.name}**")
@@ -128,6 +122,17 @@ if uploaded_file:
     # Button to start generation
     if st.button("Generate Worksheets"):
         st.info("Starting PDF generation. This might take a few minutes...")
+
+        # --- Download and Load Templates ONLY ON BUTTON CLICK ---
+        if st.session_state.worksheet_template_reader is None:
+            try:
+                st.session_state.worksheet_template_reader = download_and_load_pdf_template(WORKSHEET_FORM_URL, "Worksheet-Stages-2C-and-3.pdf")
+                st.session_state.assessment_template_reader = download_and_load_pdf_template(ASSESSMENT_FORM_URL, "Assessment-Form-Stages-2AB.pdf")
+                st.success("PDF templates downloaded and loaded successfully!")
+            except Exception as e:
+                st.error(f"Failed to download/load PDF templates: {e}. Please try again or check logs.")
+                st.stop() # Stop if templates cannot be loaded
+
 
         # Feedback elements for the user
         progress_text = st.empty()
@@ -187,7 +192,8 @@ if uploaded_file:
                                 "xdate": format_date(row.get("date", "")),
                                 "xcompetition": str(row.get("competition", "")),
                             }
-                            worksheet_bytes = fill_and_get_pdf_bytes(worksheet_template_reader, field_values_worksheet)
+                            # Use templates stored in session_state
+                            worksheet_bytes = fill_and_get_pdf_bytes(st.session_state.worksheet_template_reader, field_values_worksheet)
 
                             zip_file.writestr(f"{sheet_name}/Worksheet/{player_name}-Worksheet-Stages-2C-and-3.pdf", worksheet_bytes)
                             generated_pdfs_count += 1
@@ -200,7 +206,8 @@ if uploaded_file:
                                 "country": str(row.get("country", "")),
                                 "dob": format_date(row.get("dob", "")),
                             }
-                            assessment_bytes = fill_and_get_pdf_bytes(assessment_template_reader, field_values_assessment)
+                            # Use templates stored in session_state
+                            assessment_bytes = fill_and_get_pdf_bytes(st.session_state.assessment_template_reader, field_values_assessment)
 
                             zip_file.writestr(f"{sheet_name}/Assessment/{player_name}-Assessment-Form-Stages-2AB.pdf", assessment_bytes)
                             generated_pdfs_count += 1
