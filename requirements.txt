@@ -1,4 +1,4 @@
 streamlit
 pandas
-pypdf==3.16.0 # Tente esta versão específica
+pypdf
 openpyxl
