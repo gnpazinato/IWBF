@@ -7,7 +7,7 @@ import os
 import zipfile
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
-st.set_page_config(page_title="Automated PDF Forms Generator", layout="centered")
+st.set_page_config(page_title="IWBF Player Assessment Forms Generator", layout="centered")
 
 # --- Helper Functions ---
 
@@ -89,8 +89,8 @@ worksheet_template_reader = load_pdf_template("Worksheet-Stages-2C-and-3.pdf")
 assessment_template_reader = load_pdf_template("Assessment-Form-Stages-2AB.pdf")
 
 # --- App Title and Description ---
-st.title("📄 Automated PDF Forms Generator")
-st.markdown("Upload your Excel file (`Players.xlsx`) to generate personalized PDF forms.")
+st.title("📄 IWBF Player Assessment Forms Generator")
+st.markdown("Upload your Excel file (`Players.xlsx`) to generate player forms.")
 st.markdown("---")
 
 # --- File Uploader Component ---
@@ -105,7 +105,7 @@ if uploaded_file:
     st.success(f"File selected: **{uploaded_file.name}**")
 
     # Button to start generation
-    if st.button("Generate Worksheets"):
+    if st.button("Generate Player Forms"):
         st.info("Starting PDF generation. This might take a few minutes...")
 
         # Feedback elements for the user
@@ -203,7 +203,7 @@ if uploaded_file:
             zip_buffer.seek(0)
 
             if not failed_items:
-                st.success("All PDFs generated successfully!")
+                st.success("All forms generated successfully!")
             else:
                 st.warning(f"Generation completed with **{len(failed_items)}** errors or skips. Check the logs for details.")
                 for i, msg in enumerate(failed_items[:5]):
@@ -212,9 +212,9 @@ if uploaded_file:
                     st.info(f"...and {len(failed_items) - 5} more errors. Check the console for full details.")
 
             st.download_button(
-                label="Click to Download Generated PDFs (ZIP)",
+                label="Click to Download Generated Forms (ZIP)",
                 data=zip_buffer,
-                file_name="Generated_PDFs.zip",
+                file_name="Generated_Forms.zip",
                 mime="application/zip",
                 help="Download a ZIP file containing all filled PDFs."
             )
@@ -224,4 +224,4 @@ if uploaded_file:
             st.exception(e)
 
     st.markdown("---")
-    st.caption("Developed to simplify PDF form filling.")
+    st.caption("IWBF Player Assessment Forms Generator.")
