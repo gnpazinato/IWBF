@@ -88,9 +88,15 @@ def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
 worksheet_template_reader = load_pdf_template("Worksheet-Stages-2C-and-3.pdf")
 assessment_template_reader = load_pdf_template("Assessment-Form-Stages-2AB.pdf")
 
-# --- App Title and Description ---
+# --- App Title and Instruction ---
 st.title("📄 IWBF Player Assessment Forms Generator")
-st.markdown("Upload your Excel file (`Players.xlsx`) to generate player forms.")
+
+# Instruction with download link for the template
+st.markdown("""
+**Click [here](https://drive.google.com/uc?export=download&id=1Spn7z3ZRPuyWfOzaQp-o5CIm7W3a6EZ7ofnZSOKmGYw) to download the template file `Players.xlsx`.**  
+After filling it out, upload the file below.
+""")
+
 st.markdown("---")
 
 # --- File Uploader Component ---
