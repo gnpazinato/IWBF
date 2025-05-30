@@ -100,7 +100,18 @@ with open("Players.xlsx", "rb") as f:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-st.markdown("After filling it out, upload the file below.")
+# Brief tutorial in English
+st.markdown("""
+**Step 1** – Download the `Players.xlsx` template file to your computer by clicking the button above.  
+<br>  
+**Step 2** – Fill in the `Players.xlsx` spreadsheet with the team and player data, then save and close the file.  
+Note: The data in the spreadsheet is just an example; you can replace it with your own data.  
+<br>  
+**Step 3** – Upload the `Players.xlsx` file below and click the "Generate Player Forms" button.  
+<br>  
+**Step 4** – Download the generated forms by clicking the "Click to Download Generated Forms" button.
+""", unsafe_allow_html=True)
+
 st.markdown("---")
 
 # --- File Uploader Component ---
