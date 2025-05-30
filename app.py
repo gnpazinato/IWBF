@@ -102,14 +102,13 @@ with open("Players.xlsx", "rb") as f:
 
 # Brief tutorial in English
 st.markdown("""
-**Step 1** – Download the `Players.xlsx` template file to your computer by clicking the button above.  
-<br>  
-**Step 2** – Fill in the `Players.xlsx` spreadsheet with the player data, then save and close the file.  
-Note: The data in the spreadsheet is just an example; you can replace it with your own data.  
-<br>  
-**Step 3** – Upload the `Players.xlsx` file below and click the "Generate Player Forms" button.  
-<br>  
-**Step 4** – Download the generated forms by clicking the "Click to Download Generated Forms" button.
+<div style='line-height:1.3'>
+<b>Step 1</b> – Download the `Players.xlsx` template file to your computer by clicking the button above.<br>
+<b>Step 2</b> – Fill out the `Players.xlsx` spreadsheet with the player data, then save and close the file.<br>
+<b>Note:</b> The data in the spreadsheet is just an example; you can replace it with your own data.<br>
+<b>Step 3</b> – Upload the `Players.xlsx` file below and click the "Generate Player Forms" button.<br>
+<b>Step 4</b> – Download the generated forms by clicking the "Click to Download Generated Forms" button.
+</div>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
