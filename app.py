@@ -104,7 +104,7 @@ with open("Players.xlsx", "rb") as f:
 st.markdown("""
 **Step 1** – Download the `Players.xlsx` template file to your computer by clicking the button above.  
 <br>  
-**Step 2** – Fill in the `Players.xlsx` spreadsheet with the team and player data, then save and close the file.  
+**Step 2** – Fill in the `Players.xlsx` spreadsheet with the player data, then save and close the file.  
 Note: The data in the spreadsheet is just an example; you can replace it with your own data.  
 <br>  
 **Step 3** – Upload the `Players.xlsx` file below and click the "Generate Player Forms" button.  
