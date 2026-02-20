@@ -20,7 +20,7 @@ if "entered_assessment_app" not in st.session_state:
 
     st.subheader("1) IWBF Player Assessment Forms Generator")
     st.write(
-        "Create multi-athlete forms based on information contained in a template spreadsheet."
+        "Generate player assessment forms using data from a template spreadsheet."
     )
     if st.button("Click here to access", use_container_width=True):
         st.session_state.entered_assessment_app = True
@@ -30,12 +30,11 @@ if "entered_assessment_app" not in st.session_state:
 
     st.subheader("2) IWBF Player Card Merger")
     st.write(
-        "Merge multiple single-player card PDFs into one formatted PDF to make printing easier."
+        "Merge multiple player card PDFs into one formatted PDF for easier printing."
     )
     st.link_button("Click here to access", CARD_MERGER_URL, use_container_width=True)
 
     st.markdown("---")
-    st.caption("Tip: bookmark the tool you use most often.")
     st.stop()
 with st.sidebar:
     if st.button("Back to tool selection"):
