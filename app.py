@@ -8,7 +8,45 @@ import zipfile
 
 # --- Streamlit Page Configuration (MUST BE THE FIRST STREAMLIT COMMAND) ---
 st.set_page_config(page_title="IWBF Player Assessment Forms Generator", layout="centered")
+# =========================
+# Landing / Tool chooser
+# =========================
+CARD_MERGER_URL = "https://iwbf-cards.streamlit.app/"
 
+if "entered_assessment_app" not in st.session_state:
+    st.title("Which application would you like to use?")
+
+    st.markdown("---")
+
+    st.subheader("1) IWBF Player Assessment Forms Generator")
+    st.write(
+        "Create multi-athlete forms based on information contained in a template spreadsheet."
+    )
+    if st.button("Click here to access", use_container_width=True):
+        st.session_state.entered_assessment_app = True
+        st.rerun()
+
+    st.markdown("")
+
+    st.subheader("2) IWBF Player Card Merger")
+    st.write(
+        "Merge multiple single-player card PDFs into one formatted PDF to make printing easier."
+    )
+    st.link_button("Click here to access", CARD_MERGER_URL, use_container_width=True)
+
+    st.markdown("---")
+    st.caption("Tip: bookmark the tool you use most often.")
+    st.stop()
+with st.sidebar:
+    if st.button("Back to tool selection"):
+        # limpa o "modo app"
+        st.session_state.pop("entered_assessment_app", None)
+
+        # opcional: limpa possíveis estados de widgets
+        for k in ["uploaded_file", "file_uploader", "generated_zip"]:
+            st.session_state.pop(k, None)
+
+        st.rerun()
 # --- Helper Functions ---
 
 def format_date(date):
