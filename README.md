@@ -8,6 +8,7 @@ This web app is a **hub of IWBF classification tools** — a single Streamlit de
 
 * **Player Assessment Forms Generator** — fills the IWBF assessment forms (`Worksheet-Stages-2C-and-3.pdf` and `Assessment-Form-Stages-2AB.pdf`) from an Excel spreadsheet (`Players.xlsx`), generating multiple personalized PDF forms at once.
 * **Player Card Merger** — merges multiple player card PDFs into a single, print-ready sheet (A4 layout or a business-card template).
+* **Final Results Generator** — fills the Classification Results forms (Stage 2 and Final) from a spreadsheet with one tab per team, producing one PDF per team in a ZIP.
 
 New tools can be added without creating new repositories — each tool lives in its own folder under `tools/` (see [Project Structure](#project-structure) below).
 
@@ -68,8 +69,11 @@ IWBF/
     ├── assessment_forms/
     │   ├── assessment_forms.py # Tool 1 — Player Assessment Forms Generator
     │   └── assets/             # PDF templates + Players.xlsx for this tool
-    └── card_merger/
-        └── card_merger.py      # Tool 2 — Player Card Merger (upload-only)
+    ├── card_merger/
+    │   └── card_merger.py      # Tool 2 — Player Card Merger (upload-only)
+    └── final_results/
+        ├── final_results.py    # Tool 3 — Final Results Generator
+        └── assets/             # 2 PDF templates + template spreadsheet
 ```
 
 ### Adding a new tool

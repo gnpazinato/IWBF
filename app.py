@@ -25,6 +25,12 @@ card_merger = st.Page(
     icon="📄",
     url_path="card-merger",
 )
+final_results = st.Page(
+    "tools/final_results/final_results.py",
+    title="Final Results Generator",
+    icon="🏆",
+    url_path="final-results",
+)
 
 # The order of this list is the order shown in the sidebar menu.
 #
@@ -32,5 +38,5 @@ card_merger = st.Page(
 #   1) create tools/<name>/<name>.py (a normal Streamlit script, NO set_page_config;
 #      load any bundled files via Path(__file__).resolve().parent / "assets")
 #   2) add one st.Page(...) line above and include it in the list below.
-pg = st.navigation([home, assessment_forms, card_merger])
+pg = st.navigation([home, assessment_forms, card_merger, final_results])
 pg.run()

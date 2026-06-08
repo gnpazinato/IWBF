@@ -34,5 +34,18 @@ st.page_link(
     icon="📄",
 )
 
+st.markdown("")
+
+st.subheader("🏆 Final Results Generator")
+st.write(
+    "Generate the Classification Results forms (Stage 2 and Final) from a "
+    "spreadsheet — one tab per team — producing one PDF per team in a ZIP."
+)
+st.page_link(
+    "tools/final_results/final_results.py",
+    label="Open the Final Results Generator",
+    icon="🏆",
+)
+
 st.markdown("---")
 st.caption("More tools coming soon.")
