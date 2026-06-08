@@ -1,12 +1,15 @@
-# IWBF Player Assessment Forms Generator
+# IWBF Tools
 
 ---
 
 ## Overview
 
-This web application is designed to automate the process of filling two specific IWBF player assessment forms: `Worksheet-Stages-2C-and-3.pdf` and `Assessment-Form-Stages-2AB.pdf`. It uses data from an Excel spreadsheet (`Players.xlsx`) to quickly generate multiple personalized PDF forms.
+This web app is a **hub of IWBF classification tools** — a single Streamlit deployment (one URL, https://classificationiwbf.streamlit.app/) where users pick a tool from the sidebar menu. It currently includes:
 
-This tool streamlines the manual form-filling process, making it efficient for professionals involved in player assessment.
+* **Player Assessment Forms Generator** — fills the IWBF assessment forms (`Worksheet-Stages-2C-and-3.pdf` and `Assessment-Form-Stages-2AB.pdf`) from an Excel spreadsheet (`Players.xlsx`), generating multiple personalized PDF forms at once.
+* **Player Card Merger** — merges multiple player card PDFs into a single, print-ready sheet (A4 layout or a business-card template).
+
+New tools can be added without creating new repositories — each tool lives in its own folder under `tools/` (see [Project Structure](#project-structure) below).
 
 ---
 
@@ -44,22 +47,34 @@ This tool streamlines the manual form-filling process, making it efficient for p
 This project is built using:
 
 * **Python**
-* **Streamlit:** For the interactive web interface.
+* **Streamlit:** For the interactive web interface and multipage navigation (`st.navigation`).
 * **pandas:** For efficient Excel data reading and manipulation.
 * **PyPDF2:** For PDF form filling and manipulation.
+* **PyMuPDF (fitz) & reportlab:** For the Player Card Merger's PDF layout and rendering.
 
 ---
 
 ## Project Structure
 
-The repository contains the following essential files:
+This repository is a **multi-tool hub**: a single Streamlit app that bundles several IWBF tools, each in its own folder, wired together with Streamlit's native multipage navigation (`st.navigation` / `st.Page`).
 
-* `app.py`: The main Streamlit application code.
-* `Worksheet-Stages-2C-and-3.pdf`: The template for the Worksheet form.
-* `Assessment-Form-Stages-2AB.pdf`: The template for the Assessment form.
-* `requirements.txt`: Lists all Python dependencies required for the application.
-* `README.md`: This file, providing project overview and usage instructions.
-* `.gitignore`: Specifies files and directories to be ignored by Git.
+```
+IWBF/
+├── app.py                      # Entry/router: page config + st.navigation menu
+├── requirements.txt            # Combined dependencies for all tools
+├── home/
+│   └── home.py                 # Landing page (welcome + tool descriptions)
+└── tools/
+    ├── assessment_forms/
+    │   ├── assessment_forms.py # Tool 1 — Player Assessment Forms Generator
+    │   └── assets/             # PDF templates + Players.xlsx for this tool
+    └── card_merger/
+        └── card_merger.py      # Tool 2 — Player Card Merger (upload-only)
+```
+
+### Adding a new tool
+1. Create `tools/<name>/<name>.py` — a normal Streamlit script with **no** `st.set_page_config`. Load any bundled files via `Path(__file__).resolve().parent / "assets"`.
+2. Register it in `app.py`: add one `st.Page("tools/<name>/<name>.py", title=..., icon=...)` and include it in the `st.navigation([...])` list.
 
 ---
 
