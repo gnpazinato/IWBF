@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.title("🏀 IWBF Tools")
+st.title("🏀 IWBF Classification Tools")
 
 st.markdown(
     """
@@ -23,7 +23,7 @@ st.page_link(
 
 st.markdown("")
 
-st.subheader("🃏 Player Card Merger")
+st.subheader("📄 Player Card Merger")
 st.write(
     "Merge multiple player card PDFs into a single, print-ready sheet "
     "(A4 layout or a business-card template)."
@@ -31,7 +31,7 @@ st.write(
 st.page_link(
     "tools/card_merger/card_merger.py",
     label="Open the Player Card Merger",
-    icon="🃏",
+    icon="📄",
 )
 
 st.markdown("---")

@@ -4,7 +4,7 @@ import streamlit as st
 # With st.navigation, set_page_config must be called exactly ONCE, here in the
 # router — never inside the individual tool/page scripts (it would raise
 # StreamlitSetPageConfigMustBeFirstCommandError).
-st.set_page_config(page_title="IWBF Tools", page_icon="🏀", layout="centered")
+st.set_page_config(page_title="IWBF Classification Tools", page_icon="🏀", layout="centered")
 
 # --- Pages (one entry per tool) ---
 home = st.Page(
@@ -22,7 +22,7 @@ assessment_forms = st.Page(
 card_merger = st.Page(
     "tools/card_merger/card_merger.py",
     title="Player Card Merger",
-    icon="🃏",
+    icon="📄",
     url_path="card-merger",
 )
 
