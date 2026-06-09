@@ -22,6 +22,20 @@ def format_date(date):
     except Exception:
         return str(date)
 
+def format_class(value):
+    """
+    Formats a sport class as 'X.0'/'X.5' with a dot decimal
+    (e.g. 1.0, 1.5, 2.0, 2.5) — never '1,0' nor a bare '1'.
+    Non-numeric values are returned trimmed, as-is.
+    """
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip().replace(",", ".")
+    try:
+        return f"{float(text):.1f}"
+    except ValueError:
+        return text
+
 @st.cache_resource # Using st.cache_resource to load the PDF only once
 def load_pdf_template(template_name_with_extension):
     """
@@ -138,7 +152,14 @@ if uploaded_file:
         try:
             # Load all sheets from the Excel file
             excel_data = io.BytesIO(uploaded_file.getvalue())
-            planilhas = pd.read_excel(excel_data, sheet_name=None)
+            # Read the jersey 'number' and the 'proposed-class' as text so that
+            # values like "00", "01" keep their leading zeros and the class is
+            # not coerced to a float (e.g. 12.0). Date columns stay as dates.
+            planilhas = pd.read_excel(
+                excel_data,
+                sheet_name=None,
+                dtype={"number": str, "proposed-class": str},
+            )
 
             # Calculate total PDFs for the progress bar
             for sheet_name, df in planilhas.items():
@@ -173,13 +194,13 @@ if uploaded_file:
                             # --- Fill Worksheet (Form 1) ---
                             field_values_worksheet = {
                                 "number": player_number,
-                                "proposed-class": str(row.get("proposed-class", "")),
+                                "proposed-class": format_class(row.get("proposed-class", "")),
                                 "name": player_name,
                                 "country": str(row.get("country", "")),
                                 "date": format_date(row.get("date", "")),
                                 "competition": str(row.get("competition", "")),
                                 "xnumber": player_number,
-                                "xproposed-class": str(row.get("proposed-class", "")),
+                                "xproposed-class": format_class(row.get("proposed-class", "")),
                                 "xname": player_name,
                                 "xcountry": str(row.get("country", "")),
                                 "xdate": format_date(row.get("date", "")),

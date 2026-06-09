@@ -46,6 +46,20 @@ def format_date(date):
         return str(date).strip()
 
 
+def format_class(value):
+    """Formats a sport class as 'X.0'/'X.5' with a dot decimal
+    (e.g. 1.0, 1.5, 2.0, 2.5) — never '1,0' nor a bare '1'.
+    Non-numeric values are returned trimmed, as-is.
+    """
+    text = clean(value).replace(",", ".")
+    if text == "":
+        return ""
+    try:
+        return f"{float(text):.1f}"
+    except ValueError:
+        return text
+
+
 @st.cache_resource  # load each PDF template only once
 def load_pdf_template(template_name):
     """Loads a fillable PDF template from this tool's assets folder."""
@@ -124,7 +138,7 @@ def build_field_values(df):
         field_values[f"Row{i}"] = clean(row.get("number"))
         field_values[f"PLAYER FAMILY NAME Given NameRow{i}"] = clean(row.get("name"))
         field_values[f"Date of birth ddmmyyyyRow{i}"] = format_date(row.get("dob"))
-        field_values[f"Sport classRow{i}"] = clean(row.get("sport-class"))
+        field_values[f"Sport classRow{i}"] = format_class(row.get("sport-class"))
         field_values[f"SCSRow{i}"] = clean(row.get("sport-class-status"))
         field_values[f"RemarkRow{i}"] = clean(row.get("remark"))
 
