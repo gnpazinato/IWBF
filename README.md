@@ -20,14 +20,19 @@ New tools can be added without creating new repositories — each tool lives in 
     https://classificationiwbf.streamlit.app/
 
 2.  **Prepare Your Excel File:**
-    * Ensure your `Players.xlsx` file contains the following columns for each player:
+    * Ensure your `Players.xlsx` file contains the following columns for each player (in this order):
         * `number`
-        * `proposed-class`
         * `name`
-        * `country`
+        * `proposed-class`
+        * `status`
+        * `dob`
         * `date`
         * `competition`
-        * `dob`
+    * Each sheet/tab is one team, and the generated output folders are named after the **sheet/tab name**.
+    * The **`status`** column controls which forms are generated for each player:
+        * **New** player — write `N` or `New` → **both** forms are created (Assessment Form Stages 2AB **and** Worksheet Stages 2C and 3).
+        * **Review** player — write `R`, `Review`, or any review code (`R-FRD`, `RFD`, `FRD`, `R-NAO`, …) → **only** the Worksheet Stages 2C and 3 is created; the player is *not* added to the Stages 2AB form (a review player has already been classified and skips the Stages 2AB assessment).
+        * A blank or unrecognized status is treated as **New** (both forms).
 
 3.  **Upload the File:**
     * On the application interface, click the "Select your Players.xlsx file" button.
@@ -39,7 +44,7 @@ New tools can be added without creating new repositories — each tool lives in 
 
 5.  **Download Forms:**
     * Once the process is complete, a "Click to Download Generated Forms (ZIP)" button will appear.
-    * Click it to download a `.zip` file containing all the personalized PDF forms. The forms will be organized into folders named "Stages 2C and 3" and "Stages 2AB" within the ZIP archive.
+    * Click it to download a `.zip` file containing all the personalized PDF forms, organized per team sheet into folders named "Stages 2C and 3" and "Stages 2AB" within the ZIP archive. The "Stages 2AB" folder only contains forms for **new** players (review players appear only under "Stages 2C and 3").
 
 ---
 

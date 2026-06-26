@@ -204,8 +204,8 @@ uploaded_file = st.file_uploader(
     "Select your filled classification-results-spreadsheet-template.xlsx file",
     type=["xlsx"],
     help="Each sheet (tab) is one team. Columns: competition, "
-         "location-of-the-competition, country, gender, number, name, dob, "
-         "sport-class, sport-class-status, remark.",
+         "location-of-the-competition, country, gender, number, name, "
+         "sport-class, sport-class-status, dob, remark.",
 )
 
 if uploaded_file:
