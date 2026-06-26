@@ -247,35 +247,41 @@ view = st.session_state.get("fr_view", "menu")
 if view == "menu":
     st.markdown(
         "Choose which classification results form you want to generate. "
-        "There are three options:"
+        "There are **three options**, grouped into **two ways of working**:"
     )
 
-    st.markdown("""
-**1. Classification Results - Stage 2** and **2. Classification Results - Final**
-work the same way:
-- **Step 1** – Download the template spreadsheet (one tab per team).
-- **Step 2** – Fill one sheet (tab) per team, one player per row (up to 12 players).
-- **Step 3** – Upload the filled spreadsheet.
-- **Step 4** – Download a ready-to-sign PDF for **every team** (as a ZIP), save them to
-  OneDrive and collect each coach / manager signature.
-
-**3. Classification Results - Individual** lets you fill **a single form right here in the
-browser** (event, location, country, team and up to 12 players) and download the filled
-PDF — no spreadsheet needed.
+    # --- Option group 1: spreadsheet-driven (Stage 2 + Final) ---
+    with st.container(border=True):
+        st.markdown("#### 📊 From a spreadsheet — one PDF per team")
+        st.markdown(
+            "Use this for **Classification Results - Stage 2** and "
+            "**Classification Results - Final**. They work the same way:"
+        )
+        st.markdown("""
+**Step 1** – Download the template spreadsheet (one tab per team).\\
+**Step 2** – Fill **one sheet (tab) per team**, one player per row (up to 12 players).\\
+**Step 3** – Upload the filled spreadsheet.\\
+**Step 4** – Download one ready-to-sign PDF per team (as a ZIP).
 """)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.button("Classification Results - Stage 2", use_container_width=True,
+                      on_click=go, args=("stage2",))
+        with c2:
+            st.button("Classification Results - Final", use_container_width=True,
+                      on_click=go, args=("final",))
 
-    st.markdown("---")
-    st.markdown("**Pick a form to start:**")
+    st.markdown("")
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.button("Classification Results -\nStage 2", use_container_width=True,
-                  on_click=go, args=("stage2",))
-    with c2:
-        st.button("Classification Results -\nFinal", use_container_width=True,
-                  on_click=go, args=("final",))
-    with c3:
-        st.button("Classification Results -\nIndividual", use_container_width=True,
+    # --- Option group 2: in-browser single form (Individual) ---
+    with st.container(border=True):
+        st.markdown("#### ✍️ In the browser — a single form")
+        st.markdown(
+            "Use this for **Classification Results - Individual**. "
+            "Fill **one form right here** — event, location, country, team and up to "
+            "12 players — then download the filled PDF. **No spreadsheet needed.**"
+        )
+        st.button("Classification Results - Individual", use_container_width=True,
                   on_click=go, args=("individual",))
 
 
