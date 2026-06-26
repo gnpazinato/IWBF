@@ -11,8 +11,8 @@ ASSETS = Path(__file__).resolve().parent / "assets"
 
 TEMPLATE_XLSX = "classification-results-spreadsheet-template.xlsx"
 
-# The two output variants: the label shown on the button, the PDF template to
-# fill, and the suffix used in each generated file name.
+# The two spreadsheet-driven (batch) variants: the PDF template to fill and the
+# suffix used in each generated file name.
 VARIANTS = {
     "Stage 2": {
         "template": "Classification-Results-Stage-2.pdf",
@@ -24,7 +24,19 @@ VARIANTS = {
     },
 }
 
+# The browser-filled (individual) variant uses its own template.
+INDIVIDUAL_TEMPLATE = "Classification-Individual-Result.pdf"
+INDIVIDUAL_FILENAME = "Classification-Individual-Result.pdf"
+
 MAX_PLAYERS = 12  # the PDF forms have 12 player rows
+
+# Column labels for the in-browser individual player table.
+COL_NUM = "#"
+COL_NAME = "PLAYER (FAMILY NAME, Given Name)"
+COL_DOB = "Date of birth (dd/mm/yyyy)"
+COL_CLASS = "Sport class"
+COL_SCS = "SCS"
+COL_REMARK = "Remark"
 
 
 # --- Helper Functions ---
@@ -37,11 +49,12 @@ def clean(value):
 
 
 def format_date(date):
-    """Formats a date to 'dd-mm-yyyy' (day-first), or returns it as a string."""
+    """Formats a date to 'dd/mm/yyyy' (day-first) to match the form's own
+    'Date of birth dd/mm/yyyy' column header, or returns it as a string."""
     if pd.isna(date) or str(date).strip() == "":
         return ""
     try:
-        return pd.to_datetime(date, dayfirst=True).strftime("%d-%m-%Y")
+        return pd.to_datetime(date, dayfirst=True).strftime("%d/%m/%Y")
     except Exception:
         return str(date).strip()
 
@@ -104,6 +117,29 @@ def fill_and_get_pdf_bytes(pdf_reader_obj, field_values):
     return buffer.getvalue()
 
 
+def header_field_values(event, location, country, gender):
+    """The five form-header fields, shared by every variant."""
+    g = clean(gender).upper()
+    return {
+        "Event": clean(event),
+        "Location": clean(location),
+        "COUNTRY": clean(country),
+        "Male": "X" if g.startswith("M") else "",
+        "Female": "X" if g.startswith("F") else "",
+    }
+
+
+def set_player_row(field_values, i, number, name, dob, sport_class, scs, remark):
+    """Writes one player's six fields for row ``i`` (1-based), with the
+    consistent formatting used across every variant."""
+    field_values[f"Row{i}"] = clean(number)
+    field_values[f"PLAYER FAMILY NAME Given NameRow{i}"] = clean(name)
+    field_values[f"Date of birth ddmmyyyyRow{i}"] = format_date(dob)
+    field_values[f"Sport classRow{i}"] = format_class(sport_class)
+    field_values[f"SCSRow{i}"] = clean(scs)
+    field_values[f"RemarkRow{i}"] = clean(remark)
+
+
 def first_value(df, column):
     """First non-empty value of a column (header info repeated across rows)."""
     if column not in df.columns:
@@ -116,18 +152,16 @@ def first_value(df, column):
 
 
 def build_field_values(df):
-    """Maps one team's sheet to PDF field values.
+    """Maps one team's sheet to PDF field values (spreadsheet / batch flow).
 
     Returns (field_values, number_of_players, overflow_count).
     """
-    gender = first_value(df, "gender").upper()
-    field_values = {
-        "Event": first_value(df, "competition"),
-        "Location": first_value(df, "location-of-the-competition"),
-        "COUNTRY": first_value(df, "country"),
-        "Male": "X" if gender.startswith("M") else "",
-        "Female": "X" if gender.startswith("F") else "",
-    }
+    field_values = header_field_values(
+        first_value(df, "competition"),
+        first_value(df, "location-of-the-competition"),
+        first_value(df, "country"),
+        first_value(df, "gender"),
+    )
 
     # Keep only rows that actually have a player name, capped at 12.
     players = [row for _, row in df.iterrows() if clean(row.get("name"))]
@@ -135,14 +169,29 @@ def build_field_values(df):
     players = players[:MAX_PLAYERS]
 
     for i, row in enumerate(players, start=1):
-        field_values[f"Row{i}"] = clean(row.get("number"))
-        field_values[f"PLAYER FAMILY NAME Given NameRow{i}"] = clean(row.get("name"))
-        field_values[f"Date of birth ddmmyyyyRow{i}"] = format_date(row.get("dob"))
-        field_values[f"Sport classRow{i}"] = format_class(row.get("sport-class"))
-        field_values[f"SCSRow{i}"] = clean(row.get("sport-class-status"))
-        field_values[f"RemarkRow{i}"] = clean(row.get("remark"))
+        set_player_row(
+            field_values, i,
+            row.get("number"), row.get("name"), row.get("dob"),
+            row.get("sport-class"), row.get("sport-class-status"), row.get("remark"),
+        )
 
     return field_values, len(players), overflow
+
+
+def build_individual_field_values(event, location, country, gender, players):
+    """Maps the in-browser individual form to PDF field values.
+
+    ``players`` is a list of dicts (already filtered to those with a name),
+    each with keys: number, name, dob, sport_class, scs, remark.
+    """
+    field_values = header_field_values(event, location, country, gender)
+    for i, p in enumerate(players[:MAX_PLAYERS], start=1):
+        set_player_row(
+            field_values, i,
+            p.get("number"), p.get("name"), p.get("dob"),
+            p.get("sport_class"), p.get("scs"), p.get("remark"),
+        )
+    return field_values
 
 
 def generate_zip(variant_key, sheets):
@@ -178,88 +227,230 @@ def generate_zip(variant_key, sheets):
     return zip_buffer.getvalue(), generated, notes
 
 
+# --- Navigation ---
+
+def go(view):
+    """Switches the visible view and clears any stale generated output."""
+    st.session_state["fr_view"] = view
+    st.session_state.pop("fr_result", None)
+    st.session_state.pop("fr_individual_pdf", None)
+
+
 # --- App UI ---
 
-st.title("🏆 Final Results Generator")
+st.title("📝 IWBF Results Forms Generator")
 
-with open(ASSETS / TEMPLATE_XLSX, "rb") as f:
-    st.download_button(
-        label="📥 Click here to download the template file "
-              "(classification-results-spreadsheet-template.xlsx)",
-        data=f,
-        file_name=TEMPLATE_XLSX,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+view = st.session_state.get("fr_view", "menu")
+
+
+# ============================ MENU ============================
+if view == "menu":
+    st.markdown(
+        "Choose which classification results form you want to generate. "
+        "There are three options:"
     )
 
-st.markdown("""
+    st.markdown("""
+**1. Classification Results - Stage 2** and **2. Classification Results - Final**
+work the same way:
+- **Step 1** – Download the template spreadsheet (one tab per team).
+- **Step 2** – Fill one sheet (tab) per team, one player per row (up to 12 players).
+- **Step 3** – Upload the filled spreadsheet.
+- **Step 4** – Download a ready-to-sign PDF for **every team** (as a ZIP), save them to
+  OneDrive and collect each coach / manager signature.
+
+**3. Classification Results - Individual** lets you fill **a single form right here in the
+browser** (event, location, country, team and up to 12 players) and download the filled
+PDF — no spreadsheet needed.
+""")
+
+    st.markdown("---")
+    st.markdown("**Pick a form to start:**")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.button("Classification Results -\nStage 2", use_container_width=True,
+                  on_click=go, args=("stage2",))
+    with c2:
+        st.button("Classification Results -\nFinal", use_container_width=True,
+                  on_click=go, args=("final",))
+    with c3:
+        st.button("Classification Results -\nIndividual", use_container_width=True,
+                  on_click=go, args=("individual",))
+
+
+# ===================== BATCH (Stage 2 / Final) =====================
+elif view in ("stage2", "final"):
+    variant_key = "Stage 2" if view == "stage2" else "Final"
+
+    st.button("← Back to menu", on_click=go, args=("menu",))
+    st.subheader(f"Classification Results - {variant_key}")
+
+    with open(ASSETS / TEMPLATE_XLSX, "rb") as f:
+        st.download_button(
+            label="📥 Click here to download the template file "
+                  "(classification-results-spreadsheet-template.xlsx)",
+            data=f,
+            file_name=TEMPLATE_XLSX,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    st.markdown("""
 **Step 1** – Download the template spreadsheet above.\\
 **Step 2** – Fill **one sheet (tab) per team**, one player per row (up to 12 players per team), using the provided column headers.\\
 **Step 3** – Upload the filled spreadsheet below.\\
-**Step 4** – Click one of the two buttons to generate the PDFs (one per team) and download the ZIP.
+**Step 4** – Click the button to generate the PDFs (one per team) and download the ZIP.
 """)
 
-st.markdown("---")
+    st.markdown("---")
 
-uploaded_file = st.file_uploader(
-    "Select your filled classification-results-spreadsheet-template.xlsx file",
-    type=["xlsx"],
-    help="Each sheet (tab) is one team. Columns: competition, "
-         "location-of-the-competition, country, gender, number, name, "
-         "sport-class, sport-class-status, dob, remark.",
-)
+    uploaded_file = st.file_uploader(
+        "Select your filled classification-results-spreadsheet-template.xlsx file",
+        type=["xlsx"],
+        help="Each sheet (tab) is one team. Columns: competition, "
+             "location-of-the-competition, country, gender, number, name, "
+             "sport-class, sport-class-status, dob, remark.",
+    )
 
-if uploaded_file:
-    st.success(f"File selected: **{uploaded_file.name}**")
+    if uploaded_file:
+        st.success(f"File selected: **{uploaded_file.name}**")
 
-    # Forget any previous result when a different file is uploaded.
-    file_sig = (uploaded_file.name, len(uploaded_file.getvalue()))
-    if st.session_state.get("fr_file_sig") != file_sig:
-        st.session_state["fr_file_sig"] = file_sig
-        st.session_state.pop("fr_result", None)
+        # Forget any previous result when a different file is uploaded.
+        file_sig = (uploaded_file.name, len(uploaded_file.getvalue()))
+        if st.session_state.get("fr_file_sig") != file_sig:
+            st.session_state["fr_file_sig"] = file_sig
+            st.session_state.pop("fr_result", None)
 
-    try:
-        sheets = pd.read_excel(
-            io.BytesIO(uploaded_file.getvalue()), sheet_name=None, dtype=str
-        )
-    except Exception as e:
-        st.error(f"Could not read the spreadsheet: {e}")
-        st.stop()
+        try:
+            sheets = pd.read_excel(
+                io.BytesIO(uploaded_file.getvalue()), sheet_name=None, dtype=str
+            )
+        except Exception as e:
+            st.error(f"Could not read the spreadsheet: {e}")
+            st.stop()
 
-    st.caption(f"{len(sheets)} team sheet(s) detected: {', '.join(sheets.keys())}")
+        st.caption(f"{len(sheets)} team sheet(s) detected: {', '.join(sheets.keys())}")
+
+        if st.button(f"Generate '{variant_key}' PDFs", use_container_width=True,
+                     type="primary"):
+            with st.spinner(f"Generating '{variant_key}' PDFs..."):
+                zip_bytes, generated, notes = generate_zip(variant_key, sheets)
+            st.session_state["fr_result"] = {
+                "variant": variant_key,
+                "zip": zip_bytes,
+                "generated": generated,
+                "notes": notes,
+            }
+
+        result = st.session_state.get("fr_result")
+        if result and result["variant"] == variant_key:
+            if result["generated"] == 0:
+                st.error("No PDFs were generated — no players found in any sheet.")
+            else:
+                st.success(f"{result['generated']} PDF(s) generated for '{variant_key}'.")
+            for note in result["notes"]:
+                st.warning(note)
+            if result["generated"] > 0:
+                st.download_button(
+                    label=f"⬇️ Click to Download '{variant_key}' PDFs (ZIP)",
+                    data=result["zip"],
+                    file_name=f"Classification Results - {variant_key}.zip",
+                    mime="application/zip",
+                )
+
+
+# ===================== INDIVIDUAL (in-browser) =====================
+elif view == "individual":
+    st.button("← Back to menu", on_click=go, args=("menu",))
+    st.subheader("Classification Results - Individual")
+
+    st.markdown("""
+Fill the form below and click **Generate PDF**. Fill **at least one player** (a player
+row is only used if it has a name). Up to **12 players** can be added.
+""")
 
     col1, col2 = st.columns(2)
     with col1:
-        stage2_clicked = st.button("Classification Results - Stage 2", use_container_width=True)
+        event = st.text_input("Event")
+        country = st.text_input("Country")
     with col2:
-        final_clicked = st.button("Classification Results - Final", use_container_width=True)
+        location = st.text_input("Location")
+        gender = st.selectbox("Team", ["Male", "Female"])
 
-    if stage2_clicked or final_clicked:
-        chosen = "Stage 2" if stage2_clicked else "Final"
-        with st.spinner(f"Generating '{chosen}' PDFs..."):
-            zip_bytes, generated, notes = generate_zip(chosen, sheets)
-        st.session_state["fr_result"] = {
-            "variant": chosen,
-            "zip": zip_bytes,
-            "generated": generated,
-            "notes": notes,
-        }
+    st.markdown(
+        "**Players** — a row is included on the form only if it has a player **name**. "
+        "Fill in as many of the 12 rows as you need (at least one). `Remark` is optional."
+    )
 
-    result = st.session_state.get("fr_result")
-    if result:
-        chosen = result["variant"]
-        if result["generated"] == 0:
-            st.error("No PDFs were generated — no players found in any sheet.")
+    empty_players = pd.DataFrame(
+        [{COL_NUM: "", COL_NAME: "", COL_DOB: "", COL_CLASS: "", COL_SCS: "", COL_REMARK: ""}
+         for _ in range(MAX_PLAYERS)]
+    )
+
+    edited = st.data_editor(
+        empty_players,
+        num_rows="fixed",
+        hide_index=True,
+        use_container_width=True,
+        key="fr_individual_players",
+        column_config={
+            COL_NUM: st.column_config.TextColumn(
+                COL_NUM, width="small",
+                help="Jersey number (leading zeros are preserved)."),
+            COL_NAME: st.column_config.TextColumn(COL_NAME, width="large"),
+            COL_DOB: st.column_config.TextColumn(COL_DOB, width="medium"),
+            COL_CLASS: st.column_config.TextColumn(
+                COL_CLASS, width="small",
+                help="e.g. 1.0, 1.5, 2.0 ... 4.5"),
+            COL_SCS: st.column_config.TextColumn(COL_SCS, width="small"),
+            COL_REMARK: st.column_config.TextColumn(
+                COL_REMARK, width="medium", help="Optional."),
+        },
+    )
+
+    if st.button("📄 Generate PDF", type="primary"):
+        players = []
+        for rec in edited.to_dict("records"):
+            name = clean(rec.get(COL_NAME))
+            if not name:
+                continue
+            players.append({
+                "number": rec.get(COL_NUM),
+                "name": name,
+                "dob": rec.get(COL_DOB),
+                "sport_class": rec.get(COL_CLASS),
+                "scs": rec.get(COL_SCS),
+                "remark": rec.get(COL_REMARK),
+            })
+
+        if not players:
+            st.session_state.pop("fr_individual_pdf", None)
+            st.error("Please fill in at least one player — a player row needs a name.")
         else:
-            st.success(f"{result['generated']} PDF(s) generated for '{chosen}'.")
-        for note in result["notes"]:
-            st.warning(note)
-        if result["generated"] > 0:
-            st.download_button(
-                label=f"Click to Download '{chosen}' PDFs (ZIP)",
-                data=result["zip"],
-                file_name=f"Classification Results - {chosen}.zip",
-                mime="application/zip",
+            field_values = build_individual_field_values(
+                event, location, country, gender, players
             )
+            reader = load_pdf_template(INDIVIDUAL_TEMPLATE)
+            try:
+                pdf_bytes = fill_and_get_pdf_bytes(reader, field_values)
+                st.session_state["fr_individual_pdf"] = pdf_bytes
+                st.session_state["fr_individual_count"] = len(players)
+            except Exception as e:
+                st.session_state.pop("fr_individual_pdf", None)
+                st.error(f"Could not generate the PDF: {e}")
+
+    pdf_bytes = st.session_state.get("fr_individual_pdf")
+    if pdf_bytes:
+        st.success(
+            f"PDF generated with {st.session_state.get('fr_individual_count', 0)} player(s)."
+        )
+        st.download_button(
+            label=f"⬇️ Download {INDIVIDUAL_FILENAME}",
+            data=pdf_bytes,
+            file_name=INDIVIDUAL_FILENAME,
+            mime="application/pdf",
+        )
+
 
 st.markdown("---")
-st.caption("Final Results Generator.")
+st.caption("Results Forms Generator.")

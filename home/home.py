@@ -23,7 +23,7 @@ st.page_link(
 
 st.markdown("")
 
-st.subheader("📄 Player Card Merger")
+st.subheader("🪪 Player Card Merger")
 st.write(
     "Merge multiple player card PDFs into a single, print-ready sheet "
     "(A4 layout or a business-card template)."
@@ -31,20 +31,21 @@ st.write(
 st.page_link(
     "tools/card_merger/card_merger.py",
     label="Open the Player Card Merger",
-    icon="📄",
+    icon="🪪",
 )
 
 st.markdown("")
 
-st.subheader("🏆 Final Results Generator")
+st.subheader("📝 Results Forms Generator")
 st.write(
-    "Generate the Classification Results forms (Stage 2 and Final) from a "
-    "spreadsheet — one tab per team — producing one PDF per team in a ZIP."
+    "Generate the Classification Results forms — **Stage 2** and **Final** from a "
+    "spreadsheet (one tab per team, one PDF per team in a ZIP), or fill an "
+    "**Individual** form right in the browser."
 )
 st.page_link(
     "tools/final_results/final_results.py",
-    label="Open the Final Results Generator",
-    icon="🏆",
+    label="Open the Results Forms Generator",
+    icon="📝",
 )
 
 st.markdown("---")

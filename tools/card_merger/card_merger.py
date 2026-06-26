@@ -252,7 +252,7 @@ def gerar_pdf_a4(card_files):
 # STREAMLIT UI
 # ============================================================
 
-st.title("IWBF Player Card Merger")
+st.title("🪪 IWBF Player Card Merger")
 
 st.markdown("""
 Upload **player card PDFs**.  

@@ -22,13 +22,13 @@ assessment_forms = st.Page(
 card_merger = st.Page(
     "tools/card_merger/card_merger.py",
     title="Player Card Merger",
-    icon="📄",
+    icon="🪪",
     url_path="card-merger",
 )
 final_results = st.Page(
     "tools/final_results/final_results.py",
-    title="Final Results Generator",
-    icon="🏆",
+    title="Results Forms Generator",
+    icon="📝",
     url_path="final-results",
 )
 
