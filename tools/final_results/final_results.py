@@ -258,11 +258,20 @@ if view == "menu":
             "**Classification Results - Final**. They work the same way:"
         )
         st.markdown("""
-**Step 1** – Download the template spreadsheet (one tab per team).\\
+**Step 1** – Download the template spreadsheet (one tab per team) using the button below.\\
 **Step 2** – Fill **one sheet (tab) per team**, one player per row (up to 12 players).\\
-**Step 3** – Upload the filled spreadsheet.\\
+**Step 3** – Pick **Stage 2** or **Final** below, then upload your filled spreadsheet.\\
 **Step 4** – Download one ready-to-sign PDF per team (as a ZIP).
 """)
+        with open(ASSETS / TEMPLATE_XLSX, "rb") as f:
+            st.download_button(
+                label="📥 Download the template spreadsheet "
+                      "(classification-results-spreadsheet-template.xlsx)",
+                data=f,
+                file_name=TEMPLATE_XLSX,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
         c1, c2 = st.columns(2)
         with c1:
             st.button("Classification Results - Stage 2", use_container_width=True,
@@ -292,23 +301,19 @@ elif view in ("stage2", "final"):
     st.button("← Back to menu", on_click=go, args=("menu",))
     st.subheader(f"Classification Results - {variant_key}")
 
-    with open(ASSETS / TEMPLATE_XLSX, "rb") as f:
-        st.download_button(
-            label="📥 Click here to download the template file "
-                  "(classification-results-spreadsheet-template.xlsx)",
-            data=f,
-            file_name=TEMPLATE_XLSX,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
+    st.markdown(
+        "Upload your filled spreadsheet below. One ready-to-sign PDF is generated "
+        "**per team** (one tab = one team) and bundled into a single ZIP."
+    )
 
-    st.markdown("""
-**Step 1** – Download the template spreadsheet above.\\
-**Step 2** – Fill **one sheet (tab) per team**, one player per row (up to 12 players per team), using the provided column headers.\\
-**Step 3** – Upload the filled spreadsheet below.\\
-**Step 4** – Click the button to generate the PDFs (one per team) and download the ZIP.
-""")
-
-    st.markdown("---")
+    with st.expander("Need the template spreadsheet again?"):
+        with open(ASSETS / TEMPLATE_XLSX, "rb") as f:
+            st.download_button(
+                label="📥 Download the template spreadsheet",
+                data=f,
+                file_name=TEMPLATE_XLSX,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 
     uploaded_file = st.file_uploader(
         "Select your filled classification-results-spreadsheet-template.xlsx file",
