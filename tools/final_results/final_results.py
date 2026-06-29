@@ -3,6 +3,7 @@ import pandas as pd
 from PyPDF2 import PdfReader, PdfWriter
 from PyPDF2.generic import NameObject, BooleanObject, DictionaryObject
 import io
+import re
 import zipfile
 from pathlib import Path
 
@@ -151,15 +152,41 @@ def first_value(df, column):
     return ""
 
 
-def build_field_values(df):
+# Trailing gender label used in tab names like "Brazil M" / "Brazil Women".
+# Each team's gender lives in its own 'gender' column (and Male/Female checkbox);
+# here we only peel that label off the END of a sheet name to recover the country.
+_GENDER_SUFFIX = re.compile(
+    r"[\s\-_]+(m|w|f|men|women|male|female|mens|womens)$",
+    re.IGNORECASE,
+)
+
+
+def country_from_sheet_name(sheet_name):
+    """Derives the country from a sheet/tab name by stripping a trailing gender
+    label, used as a fallback when the 'country' column is empty or missing.
+
+    Tabs are named like 'Brazil M' / 'Brazil Women', so the country is whatever
+    comes before that final M/W/Men/Women token.
+        'Brazil M' -> 'Brazil';  'Brazil' -> 'Brazil';  '' -> ''.
+    """
+    name = clean(sheet_name)
+    return _GENDER_SUFFIX.sub("", name).strip() or name
+
+
+def build_field_values(df, sheet_name=""):
     """Maps one team's sheet to PDF field values (spreadsheet / batch flow).
 
     Returns (field_values, number_of_players, overflow_count).
+
+    The country comes from the 'country' column when filled; otherwise it falls
+    back to the sheet/tab name (e.g. a 'Brazil M' tab fills COUNTRY = 'Brazil'),
+    so the form's COUNTRY field is populated even without a country column.
     """
+    country = first_value(df, "country") or country_from_sheet_name(sheet_name)
     field_values = header_field_values(
         first_value(df, "competition"),
         first_value(df, "location-of-the-competition"),
-        first_value(df, "country"),
+        country,
         first_value(df, "gender"),
     )
 
@@ -206,7 +233,7 @@ def generate_zip(variant_key, sheets):
 
     with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
         for sheet_name, df in sheets.items():
-            field_values, n_players, overflow = build_field_values(df)
+            field_values, n_players, overflow = build_field_values(df, sheet_name)
             if n_players == 0:
                 notes.append(f"Sheet '{sheet_name}' skipped (no players found).")
                 continue
@@ -320,7 +347,9 @@ elif view in ("stage2", "final"):
         type=["xlsx"],
         help="Each sheet (tab) is one team. Columns: competition, "
              "location-of-the-competition, country, gender, number, name, "
-             "sport-class, sport-class-status, dob, remark.",
+             "sport-class, sport-class-status, dob, remark. If the 'country' "
+             "column is blank (or absent), the COUNTRY field is taken from the "
+             "tab name instead — e.g. a 'Brazil M' tab fills COUNTRY = 'Brazil'.",
     )
 
     if uploaded_file:

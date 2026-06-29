@@ -37,6 +37,24 @@ def format_class(value):
     except ValueError:
         return text
 
+# Trailing gender label used in tab names like "Brazil M" / "Brazil W".
+# Each sheet is one country+gender, so the country is everything before that
+# final M/W/Men/Women token. Used to fill the form's Country field straight from
+# the tab name, since Players.xlsx has no 'country' column.
+_GENDER_SUFFIX = re.compile(
+    r"[\s\-_]+(m|w|f|men|women|male|female|mens|womens)$",
+    re.IGNORECASE,
+)
+
+def country_from_sheet_name(sheet_name):
+    """Derives the country from a sheet/tab name by stripping a trailing gender
+    label. Tabs are named like 'Brazil M' / 'Brazil W', so the country is
+    whatever comes before that final token.
+        'Brazil M' -> 'Brazil';  'Brazil' -> 'Brazil';  '' -> ''.
+    """
+    name = "" if sheet_name is None else str(sheet_name).strip()
+    return _GENDER_SUFFIX.sub("", name).strip() or name
+
 def is_review_status(status):
     """
     Decide whether a player's classification 'status' is a *review*.
@@ -155,6 +173,9 @@ Note: The data in the spreadsheet is just an example; you can replace it with yo
 **Step 3** – Upload the `Players.xlsx` file below and click the "Generate Player Forms" button.\\
 **Step 4** – Download the generated forms by clicking the "Click to Download Generated Forms" button.
 
+**About the sheet/tab names:**\\
+• Each tab is one country (and gender), e.g. `Brazil M` / `Brazil W`. The output folders are named after the tab, and the **Country** field on both forms is filled from the tab name (`Brazil M` → Country = *Brazil*) — so no `country` column is needed.
+
 **About the `status` column:**\\
 • **New** players (`N` or `New`) get **both** forms — the *Assessment Form Stages 2AB* and the *Worksheet Stages 2C and 3*.\\
 • **Review** players (`R`, `Review`, `R-FRD`, `RFD`, `FRD`, … any review status) only need to be re-classified, so they get **only** the *Worksheet Stages 2C and 3*; the *Stages 2AB* form is **not** created for them.\\
@@ -167,7 +188,7 @@ st.markdown("---")
 uploaded_file = st.file_uploader(
     "Select your Players.xlsx file",
     type=["xlsx"],
-    help="The Excel file must contain the following columns: 'number', 'name', 'proposed-class', 'status', 'dob', 'date', 'competition'. The output folders are named after each sheet/tab."
+    help="The Excel file must contain the following columns: 'number', 'name', 'proposed-class', 'status', 'dob', 'date', 'competition'. The output folders are named after each sheet/tab, and the form's Country field is taken from the tab name (e.g. a 'Brazil M' tab fills Country = 'Brazil')."
 )
 
 # --- Processing Logic ---
@@ -219,6 +240,11 @@ if uploaded_file:
                         st.error(f"Error: Missing required columns in sheet **'{sheet_name}'**. Required: `{', '.join(required_columns)}`")
                         st.stop() # Stops execution if columns are missing
 
+                    # The Country field on both forms is filled from the tab name
+                    # (e.g. a 'Brazil M' sheet -> 'Brazil'), so no 'country'
+                    # column is needed in Players.xlsx.
+                    sheet_country = country_from_sheet_name(sheet_name)
+
                     for index, row in df.iterrows():
                         player_name = str(row.get("name", "N/A"))
                         player_number = str(row.get("number", "N/A"))
@@ -246,11 +272,13 @@ if uploaded_file:
                                 "name": player_name,
                                 "date": format_date(row.get("date", "")),
                                 "competition": str(row.get("competition", "")),
+                                "country": sheet_country,
                                 "xnumber": player_number,
                                 "xproposed-class": format_class(row.get("proposed-class", "")),
                                 "xname": player_name,
                                 "xdate": format_date(row.get("date", "")),
                                 "xcompetition": str(row.get("competition", "")),
+                                "xcountry": sheet_country,
                             }
                             # Pass the template reader object to the filling function
                             worksheet_bytes = fill_and_get_pdf_bytes(worksheet_template_reader, field_values_worksheet)
@@ -270,6 +298,7 @@ if uploaded_file:
                                 field_values_assessment = {
                                     "name": player_name,
                                     "dob": format_date(row.get("dob", "")),
+                                    "country": sheet_country,
                                 }
                                 # Pass the template reader object to the filling function
                                 assessment_bytes = fill_and_get_pdf_bytes(assessment_template_reader, field_values_assessment)
